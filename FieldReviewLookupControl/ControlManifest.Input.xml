@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest>
+  <control namespace="Insurgo" constructor="FieldReviewLookupControl" version="1.0.6" display-name-key="FieldReviewLookupControl_Display" description-key="FieldReviewLookupControl_Desc" control-type="standard">
+
+    <property name="value"
+              display-name-key="Value_Display"
+              description-key="Value_Desc"
+              of-type="Lookup.Simple"
+              usage="bound"
+              required="true" />
+
+    <property name="settingsJson"
+              display-name-key="SettingsJson_Display"
+              description-key="SettingsJson_Desc"
+              of-type="Multiple"
+              usage="input"
+              required="true" />
+
+    <resources>
+      <code path="index.ts" order="1" />
+      <css path="css/FieldReviewLookupControl.css" order="1" />
+      <resx path="strings/FieldReviewLookupControl.1033.resx" version="1.0.0" />
+    </resources>
+
+    <feature-usage>
+      <uses-feature name="WebAPI" required="true" />
+      <uses-feature name="Utility" required="true" />
+    </feature-usage>
+
+  </control>
+</manifest>
