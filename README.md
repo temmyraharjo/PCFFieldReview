@@ -1,11 +1,11 @@
 # Insurgo Field Review — PCF controls
 
-Three PCF field controls that add a "+" comment/assignment thread to a field on a
+Four PCF field controls that add a "+" comment/assignment thread to a field on a
 model-driven form: reviewers can comment on a field and assign the comment to
 multiple people. Each comment is open until any one of its assignees marks it
 resolved, which resolves it for everyone. The full history is visible to all.
 
-## Why three controls, not one
+## Why several controls, not one
 
 A single bound property can only declare one `<type-group>`, and while the
 manifest schema docs describe resolvable type-groups for scalar families
@@ -26,6 +26,11 @@ ships one control per field family, built together from a single PCF project:
   record from the field unless `lookupAllowCreate` is set (see below).
 - **FieldReviewChoiceControl** — bind to a Choice (option set) field. Same
   comment thread, plus an editable dropdown of the field's options.
+- **FieldReviewPolyLookupControl** — a multi-select lookup in the style of
+  [DCE PolyLookup](https://github.com/khoait/DCE.PCF/wiki/PolyLookup), with the
+  same comment thread. Bind it to a text column that hosts it; the selection
+  lives in an N:N, custom N:N or Connection relationship. See
+  [Multi-select (PolyLookup) control](#multi-select-polylookup-control).
 
 The Lookup and Choice controls render the value with the same dropdown
 (`common/dropdown.ts`), so both field types look and behave the same on the
@@ -36,22 +41,25 @@ All editors, including the text/number input, become read-only only when the
 field is disabled: by the form, a business rule, a script
 (`setDisabled(true)`), or column security.
 
-All three import the same logic from the root `common/` folder (settings parsing,
-the comment/assignment Web API calls, the panel UI, the lookup picker) via
-`../common/...`. There is one copy, and webpack bundles it into each
-control's `bundle.js` separately.
+All of them import the same logic from the root `common/` folder (settings parsing,
+the shared control setup, the comment/assignment Web API calls, the panel UI,
+the lookup pickers) via `../common/...`. There is one copy, and webpack
+bundles it into each control's `bundle.js` separately. The one stylesheet,
+`common/css/FieldReview.css`, is referenced by every manifest and copied into
+each control's output by the build.
 
 ```
 FieldReview.pcfproj        one PCF project, referenced by the solution
 package.json / tsconfig    shared toolchain
 pcfconfig.json             output dir; build-time ESLint skipped (no config shipped)
-common/                    shared TypeScript used by all controls
-FieldReviewControl/        manifest, index.ts, css, strings
-FieldReviewLookupControl/  manifest, index.ts, css, strings
-FieldReviewChoiceControl/  manifest, index.ts, css, strings
+common/                    shared TypeScript and the one stylesheet (css/) used by all controls
+FieldReviewControl/        manifest, index.ts, strings
+FieldReviewLookupControl/  manifest, index.ts, strings
+FieldReviewChoiceControl/  manifest, index.ts, strings
+FieldReviewPolyLookupControl/  manifest, index.ts, strings
 ```
 
-A single `npm install && npm run build` at the root builds all three controls
+A single `npm install && npm run build` at the root builds all four controls
 into `out/controls/<ControlName>/` (verified). You don't need the `pac` CLI
 for that step. You need the Power Platform CLI only to package or push the
 compiled controls into a solution.
@@ -63,40 +71,147 @@ per field instance in the form designer. Nothing about your table/column
 naming is hardcoded, so the same compiled control works across environments
 and clients with different publisher prefixes.
 
+### Which control for which column
+
+| Column type on the form | Control to add | Extra keys on top of the shared ones |
+|---|---|---|
+| Single Line of Text, Whole Number, Currency, Decimal | FieldReviewControl | none |
+| Choice | FieldReviewChoiceControl | none |
+| Lookup | FieldReviewLookupControl | `lookupTargets` (required), optional `lookup*` keys |
+| Several related records (N:N, custom intersect table, Connection) | FieldReviewPolyLookupControl, bound to a text column | `polyLookup*` keys |
+
+Date Only, Date and Time, Yes/No, Multiple Lines of Text, multi-select Choices,
+File and Image columns are **not supported**: no control binds to them, so
+they won't appear in the form designer's control list for those fields.
+
+### Text, number and Choice fields
+
+These need only the shared comment/assignment keys, so the same JSON works on
+any Text, Whole Number, Currency, Decimal or Choice field. A complete example:
+
 ```json
 {
-  "commentTable": "insurgo_reviewcomment",
-  "commentTextAttribute": "insurgo_commenttext",
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
   "regardingMode": "text",
-  "regardingTableAttribute": "insurgo_regardingtable",
-  "regardingIdAttribute": "insurgo_regardingid",
-  "regardingNameAttribute": "insurgo_regardingname",
-  "fieldReferenceAttribute": "insurgo_fieldlogicalname",
-  "commentStatusAttribute": "insurgo_status",
+  "regardingTableAttribute": "ins_regardingtable",
+  "regardingIdAttribute": "ins_regardingid",
+  "regardingNameAttribute": "ins_regardingname",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
   "commentStatusOpenValue": 100000000,
   "commentStatusResolvedValue": 100000001,
-  "commentResolvedOnAttribute": "insurgo_resolvedon",
-  "commentResolvedByAttribute": "insurgo_resolvedby",
+  "commentResolvedOnAttribute": "ins_resolvedon",
+  "commentResolvedByAttribute": "ins_resolvedby",
 
-  "assignmentTable": "insurgo_reviewassignment",
-  "assignmentCommentLookupAttribute": "insurgo_comment",
-  "assignmentUserLookupAttribute": "insurgo_assignee",
-  "assignmentRegardingTableAttribute": "insurgo_regardingtable",
-  "assignmentRegardingIdAttribute": "insurgo_regardingid",
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee",
+  "assignmentRegardingTableAttribute": "ins_regardingtable",
+  "assignmentRegardingIdAttribute": "ins_regardingid"
+}
+```
+
+The bare minimum, with a Yes/No status column, the label drawn by the control
+and the panel opening next to the field:
+
+```json
+{
+  "renderLabel": true,
+  "labelWidth": "180px",
+  "panelPlacement": "field",
+
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingTableAttribute": "ins_regardingtable",
+  "regardingIdAttribute": "ins_regardingid",
+  "commentStatusAttribute": "ins_isresolved",
+  "commentStatusOpenValue": false,
+  "commentStatusResolvedValue": true,
+
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee"
+}
+```
+
+### Lookup fields
+
+The Lookup control needs everything above plus `lookupTargets`, the table(s)
+the Lookup points to. A complete example for a Lookup to Account, showing a
+dropdown of active accounts:
+
+```json
+{
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingTableAttribute": "ins_regardingtable",
+  "regardingIdAttribute": "ins_regardingid",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee",
 
   "lookupTargets": ["account"],
   "lookupMode": "simple",
-  "lookupAllowCreate": false,
-  "lookupAutoThreshold": 25,
-  "lookupCandidateFilter": "statecode eq 0",
-  "lookupSearchDefaultViewId": null
+  "lookupCandidateFilter": "statecode eq 0"
 }
 ```
+
+Variations: replace the `lookup*` keys at the end with one of these.
+
+Dropdown plus a "+ New record" entry (quick create):
+
+```json
+{
+  "lookupTargets": ["contact"],
+  "lookupAllowCreate": true
+}
+```
+
+Always the native lookup dialog, opening on a saved view (put your view's GUID in `lookupSearchDefaultViewId`):
+
+```json
+{
+  "lookupTargets": ["account"],
+  "lookupMode": "search",
+  "lookupSearchDefaultViewId": "00000000-0000-0000-00aa-000010001001"
+}
+```
+
+Dropdown for short lists, native dialog once there are more than 50 records:
+
+```json
+{
+  "lookupTargets": ["ins_category"],
+  "lookupMode": "auto",
+  "lookupAutoThreshold": 50,
+  "lookupCandidateFilter": "statecode eq 0"
+}
+```
+
+A Lookup that can point to several tables (always uses the native dialog,
+see caveat 4):
+
+```json
+{
+  "lookupTargets": ["account", "contact"]
+}
+```
+
+For a multi-select field, see
+[Multi-select (PolyLookup) control](#multi-select-polylookup-control).
+
+### All keys
 
 | Key | Required | Purpose |
 |---|---|---|
 | `renderLabel` | no | `true` draws the field label inside the control with the "+" and comment badge next to it. A control can't draw into the form's own label, so **hide the form label** for that field (field properties > "Hide label") when you turn this on. Default `false`: the "+" sits after the value. |
 | `labelWidth` | no | Width of the label drawn by `renderLabel`, as a CSS length, e.g. `"180px"`. Match it to the other labels on the form. Default `"160px"`. |
+| `panelPlacement` | no | Where the comment panel opens: `"center"` (default) of the screen, or `"field"` below the "+" or badge that was clicked (above it when there's more room there). See [The comment panel](#the-comment-panel). |
 | `commentTable` | yes | Logical name of the table storing one row per comment. |
 | `commentTextAttribute` | yes | Column holding the comment text. |
 | `regardingMode` | no | How a comment links to its parent record: `"text"` (default) or `"lookup"`. See [Linking comments to the parent record](#linking-comments-to-the-parent-record). |
@@ -122,6 +237,29 @@ and clients with different publisher prefixes.
 | `lookupAutoThreshold` | Lookup control only | Candidate-count cutoff for `"auto"`. Default 25. |
 | `lookupCandidateFilter` | Lookup control only | Optional OData `$filter` fragment scoping candidates (used by both the dropdown and the auto-mode count check). The dropdown lists at most 100 records, sorted by name; use this filter to keep the list short. The current value always stays in the list even if the filter excludes it. |
 | `lookupSearchDefaultViewId` | Lookup control only | Saved view GUID passed as the native dialog's default view. |
+| `polyLookupRelationshipType` | PolyLookup only | `"manyToMany"` (default), `"custom"` or `"connection"`. See [Multi-select (PolyLookup) control](#multi-select-polylookup-control). |
+| `polyLookupRelationshipName` | PolyLookup only | Relationship **schema name** (not the intersect table name). `"manyToMany"`: the N:N relationship. `"custom"`: the 1:N from this table to the intersect table. `"connection"`: the "connected from" relationship, e.g. `account_connections1`. |
+| `polyLookupRelationship2Name` | PolyLookup, `"custom"`/`"connection"` | `"custom"`: the N:1 from the intersect table to the table you pick from. `"connection"`: the "connected to" relationship, e.g. `contact_connections2`. |
+| `polyLookupItemLimit` | no | PolyLookup only. Maximum number of selected records. Default: no limit. |
+| `polyLookupOutput` | no | PolyLookup only. What to write to the bound text column when the selection changes: `"none"` (default), `"text"` (comma-separated names, cut to the column's max length) or `"json"` (`[{"id","name","etn"}]`, the same shape as DCE PolyLookup). `"json"` is also what enables picking on a create form. |
+
+The PolyLookup control also reads `lookupCandidateFilter` (an OData `$filter`
+limiting which records are offered) and `lookupAllowCreate` (a "+ New record"
+entry that opens the quick create form and selects the saved record).
+
+### The comment panel
+
+The panel opens over the form (it's attached to the page, not the field, so
+the form's field cell can't clip it). Only the comment history scrolls inside
+it: the current value, the compose box, the assignee picker and the
+Cancel/Assign buttons always show in full. With `panelPlacement: "field"` the
+panel goes below the "+", or above it if it only fits there, and shrinks the
+history first to make it fit. Only when there isn't room for even that on
+either side does the whole panel scroll.
+
+The panel follows the field while the form scrolls. Scrolling, including
+dragging a scrollbar, doesn't close it. Clicking anywhere else on the form,
+the X or Cancel does.
 
 ### Linking comments to the parent record
 
@@ -137,13 +275,13 @@ the parent form, and comments aren't deleted when the parent record is.
 **`"lookup"`**: a real Lookup column on the comment table, pointing at the
 table the form is on. You get the clickable link, the subgrid and cascade
 delete back. The cost is one Lookup column per parent table, for example
-`insurgo_opportunity` for Opportunity forms and `insurgo_account` for Account
+`ins_opportunity` for Opportunity forms and `ins_account` for Account
 forms. Each form's settings JSON names its own column:
 
 ```json
 {
   "regardingMode": "lookup",
-  "regardingLookupAttribute": "insurgo_opportunity"
+  "regardingLookupAttribute": "ins_opportunity"
 }
 ```
 
@@ -156,28 +294,93 @@ comments. They only have the text columns, so they stop showing until you
 fill in their Lookup column (for example with a one-off flow or data
 import).
 
+## Multi-select (PolyLookup) control
+
+`FieldReviewPolyLookupControl` lets users pick several records, shown as
+tags, with the same "+" review thread as the other controls. It follows the
+model of [DCE PolyLookup](https://github.com/khoait/DCE.PCF/wiki/PolyLookup):
+
+- **Bind it to a text column** (Single Line of Text, Text Area or Multiple
+  Lines of Text) on the form, e.g. a new `ins_categories` column. That
+  column hosts the control and names its review thread, so comments are filed
+  under its logical name. It doesn't hold the selection. Use `polyLookupOutput`
+  if you also want the selection copied into it.
+- **The selection lives in a relationship,** and each add or remove is saved
+  right away through the Web API, independently of the form's Save button:
+
+| `polyLookupRelationshipType` | Tables | Adding a tag | Removing a tag |
+|---|---|---|---|
+| `"manyToMany"` | Native N:N, e.g. Course ⟷ Category | Associates the two records | Disassociates them |
+| `"custom"` | Your own intersect table, e.g. Student → Enrollment ← Class | Creates an intersect row | Deletes the intersect row(s) |
+| `"connection"` | The built-in Connection table | Creates a connection | Deletes the connection |
+
+Example, for a native N:N between Opportunity and a custom Category table:
+
+```json
+{
+  "polyLookupRelationshipType": "manyToMany",
+  "polyLookupRelationshipName": "ins_opportunity_category",
+  "lookupCandidateFilter": "statecode eq 0",
+  "polyLookupItemLimit": 10
+}
+```
+
+(merged into the usual comment/assignment keys). For a custom intersect table:
+
+```json
+{
+  "polyLookupRelationshipType": "custom",
+  "polyLookupRelationshipName": "ins_opportunity_enrollment",
+  "polyLookupRelationship2Name": "ins_class_enrollment"
+}
+```
+
+How it behaves:
+
+- Typing searches the target table's primary name ("contains"), within
+  `lookupCandidateFilter`. The list shows up to 50 matches, sorted by name,
+  and says when more exist. Records that are already selected are left out.
+  Arrow keys and Enter pick from the list.
+- Clicking a tag's name opens that record.
+- Read-only when the field is disabled (form, business rule, script, or
+  column security), like the other controls.
+- The selection is copied into the bound column only when the user changes
+  it, so opening a record never marks the form as modified. With
+  `polyLookupOutput` set, each change does mark it modified (the
+  relationship itself is already saved).
+
+**Create forms.** Records can't be related until the current record exists.
+With the default settings, the picker says "Save the record to select items"
+and turns on after the first save. With `polyLookupOutput: "json"`, users can
+pick on the create form: the choices are written to the bound column as JSON,
+and a plugin you register on Create (post-operation) must read that JSON and
+make the associations. The JSON shape matches DCE PolyLookup, so its
+[sample plugin](https://github.com/khoait/DCE.PCF/blob/main/Samples/DCE.PCF/DCE.PCF.Plugins/AssociatePolyLookup.cs)
+is a starting point. After the save, the control reloads the selection from
+the relationship.
+
 ## Dataverse schema to create
 
 Two tables, in your own solution, using whatever publisher prefix you're
-standardizing on for this project (the examples above use `insurgo_`):
+standardizing on for this project (the examples above use `ins_`):
 
-**Comment table** (e.g. `insurgo_reviewcomment`)
+**Comment table** (e.g. `ins_reviewcomment`)
 - Primary column (name) — whatever you like, not read by the control
-- `insurgo_commenttext` — Multiline Text
-- `insurgo_regardingtable` — Single Line of Text (`"text"` mode)
-- `insurgo_regardingid` — Single Line of Text, stores a GUID (`"text"` mode)
-- One Lookup per parent table, e.g. `insurgo_opportunity` — Lookup to Opportunity (`"lookup"` mode only)
-- `insurgo_regardingname` — Single Line of Text (optional, recommended)
-- `insurgo_fieldlogicalname` — Single Line of Text (optional; without it the field name goes into the primary name column)
-- `insurgo_status` — Choice (Open / Resolved) or Yes/No. Make sure `commentStatusOpenValue`/`commentStatusResolvedValue` match the stored values.
-- `insurgo_resolvedon` — Date and Time (optional, recommended)
-- `insurgo_resolvedby` — Lookup to User (optional, recommended)
+- `ins_commenttext` — Multiline Text
+- `ins_regardingtable` — Single Line of Text (`"text"` mode)
+- `ins_regardingid` — Single Line of Text, stores a GUID (`"text"` mode)
+- One Lookup per parent table, e.g. `ins_opportunity` — Lookup to Opportunity (`"lookup"` mode only)
+- `ins_regardingname` — Single Line of Text (optional, recommended)
+- `ins_fieldlogicalname` — Single Line of Text (optional; without it the field name goes into the primary name column)
+- `ins_status` — Choice (Open / Resolved) or Yes/No. Make sure `commentStatusOpenValue`/`commentStatusResolvedValue` match the stored values.
+- `ins_resolvedon` — Date and Time (optional, recommended)
+- `ins_resolvedby` — Lookup to User (optional, recommended)
 
-**Assignment table** (e.g. `insurgo_reviewassignment`)
+**Assignment table** (e.g. `ins_reviewassignment`)
 - Primary column (name) — not read by the control
-- `insurgo_comment` — Lookup to the comment table
-- `insurgo_assignee` — Lookup to User (systemuser)
-- `insurgo_regardingtable` / `insurgo_regardingid` — Single Line of Text (optional, for a cross-table "assigned to me" view)
+- `ins_comment` — Lookup to the comment table
+- `ins_assignee` — Lookup to User (systemuser)
+- `ins_regardingtable` / `ins_regardingid` — Single Line of Text (optional, for a cross-table "assigned to me" view)
 
 The assignment table only records who is assigned to which comment, one row
 per person. It has no status of its own. For a "my open reviews" view, build
@@ -243,9 +446,21 @@ worth knowing about rather than discovering at 2am.
    confirm on a real form that choosing `---` actually clears the stored
    value.
 
+6. **The PolyLookup control reads relationship metadata and sends N:N
+   associate/disassociate (`$ref`) requests with direct Web API calls,** since
+   PCF's `webAPI` can do neither. They go to the same origin as the form, like
+   the navigation-property lookup in caveat 3. Custom and Connection
+   relationships use `webAPI.createRecord`/`deleteRecord` on the intersect
+   table. Users need the matching Append/Append To privileges (and create /
+   delete on a custom intersect table); if they lack them, the error shows
+   under the control and the tag isn't added or removed.
+7. **The PolyLookup's bound column uses a `SingleLine.Text` /
+   `SingleLine.TextArea` / `Multiple` type-group.** That's a documented
+   same-family group, and the one DCE PolyLookup ships with.
+
 ## Building and packaging
 
-From the repo root, `npm install && npm run build` builds all three controls
+From the repo root, `npm install && npm run build` builds all four controls
 into `out/controls/`. For packaging into a solution, quick deploys with
 `pac pcf push`, and adding the controls to a form, see [BUILD.md](BUILD.md).
 
@@ -257,4 +472,10 @@ into `out/controls/`. For packaging into a solution, quick deploys with
 - A visual "has an open thread / fully resolved / no comments" state on the
   field itself, distinct from the badge, so a reviewer can scan a form
   without opening every panel.
+- Date, Yes/No and Multiple Lines of Text fields. They would need their own
+  editors (and, for dates, time zone handling) before the review thread can
+  sit on them.
 - Multi-target lookup candidates merged into the dropdown.
+- PolyLookup: searching by a saved view / FetchXML (with extra columns shown
+  per suggestion), as DCE PolyLookup does. Only a primary-name search with an
+  OData filter is supported today.

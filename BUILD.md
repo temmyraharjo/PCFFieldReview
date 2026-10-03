@@ -1,7 +1,8 @@
 # Building and deploying
 
-This repo is a single PCF project containing three controls:
-`FieldReviewControl`, `FieldReviewLookupControl` and `FieldReviewChoiceControl`.
+This repo is a single PCF project containing four controls:
+`FieldReviewControl`, `FieldReviewLookupControl`, `FieldReviewChoiceControl` and
+`FieldReviewPolyLookupControl`.
 They always build together. You can't build just one of them.
 
 ## Prerequisites
@@ -56,6 +57,7 @@ Output:
 out/controls/FieldReviewControl/
 out/controls/FieldReviewLookupControl/
 out/controls/FieldReviewChoiceControl/
+out/controls/FieldReviewPolyLookupControl/
 ```
 
 Each folder contains `bundle.js`, `ControlManifest.xml`, the CSS and the
@@ -77,7 +79,7 @@ add an `eslint.config.mjs` and remove that flag.
 
 Create the solution in its own folder. The repo root is the PCF project
 (`FieldReview.pcfproj`), so the solution can't live there too. One reference
-brings in all three controls.
+brings in all four controls.
 
 ```
 mkdir Solution
@@ -107,7 +109,7 @@ it removes the controls cleanly, so it's the right choice for test and
 production. Don't import it into an environment that already has these
 controls from an unmanaged import (for example the earlier "Solution"): the
 unmanaged copy sits on top and keeps winning, so the new bundles won't show.
-Delete the unmanaged solution *and* its three controls first, or use a clean
+Delete the unmanaged solution *and* its controls first, or use a clean
 environment.
 
 After importing:
@@ -118,6 +120,8 @@ After importing:
    - Text, Whole Number, Currency, Decimal: `Insurgo.FieldReviewControl`
    - Lookup: `Insurgo.FieldReviewLookupControl`
    - Choice: `Insurgo.FieldReviewChoiceControl`
+   - Multi-select (N:N) on a text column: `Insurgo.FieldReviewPolyLookupControl`
+     (see [Multi-select (PolyLookup) control](README.md#multi-select-polylookup-control))
 3. Set **Review settings (JSON)** to your schema (see the
    [README](README.md#settings-json)), then save and publish the form.
 

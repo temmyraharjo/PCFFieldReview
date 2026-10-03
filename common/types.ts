@@ -44,6 +44,8 @@ export interface ReviewSettings {
     renderLabel?: boolean;
     /** Width of the label drawn by renderLabel, as a CSS length. Default "160px". */
     labelWidth?: string;
+    /** Where the comment panel opens: "center" (default) of the screen, or "field" next to the "+" / badge clicked. */
+    panelPlacement?: "center" | "field";
 
     // --- Comment table ---
     /** Logical name of the table that stores one row per review comment. */
@@ -104,7 +106,7 @@ export interface ReviewSettings {
     /** Optional denormalized copy of regardingIdAttribute on the assignment table. */
     assignmentRegardingIdAttribute?: string;
 
-    // --- Lookup-field-only settings (ignored by the scalar and Choice controls) ---
+    // --- Lookup-field-only settings (ignored by the scalar and Choice controls; the PolyLookup control also reads lookupCandidateFilter and lookupAllowCreate) ---
     /** Table(s) the bound Lookup field can point to. Required for the Lookup control; not derivable from PCF metadata. */
     lookupTargets?: string[];
     /** "simple" (default): plain dropdown of existing records. "search": native lookup dialog. "auto": pick by candidate count. */
@@ -117,7 +119,33 @@ export interface ReviewSettings {
     lookupSearchDefaultViewId?: string;
     /** Adds a "+ New record" entry (quick create) to the simple dropdown. Default false. Has no effect on the native dialog, which always shows its own "+ New". */
     lookupAllowCreate?: boolean;
+
+    // --- PolyLookup-only settings (ignored by the other controls) ---
+    /** How the current table relates to the selectable table. Default "manyToMany". */
+    polyLookupRelationshipType?: PolyLookupRelationshipType;
+    /**
+     * Schema name of the relationship. "manyToMany": the N:N relationship. "custom": the 1:N from the
+     * current table to the intersect table. "connection": the "connected from" relationship (e.g. account_connections1).
+     */
+    polyLookupRelationshipName?: string;
+    /**
+     * "custom" and "connection" only: schema name of the relationship between the intersect table and the
+     * selectable table. "custom": the N:1 from the intersect table. "connection": the "connected to" relationship.
+     */
+    polyLookupRelationship2Name?: string;
+    /** Maximum number of selected records. Default: no limit. */
+    polyLookupItemLimit?: number;
+    /** What the control writes to the bound text column when the selection changes. Default "none". */
+    polyLookupOutput?: PolyLookupOutput;
 }
+
+export type PolyLookupRelationshipType = "manyToMany" | "custom" | "connection";
+
+/**
+ * "none": the bound column only hosts the control. "text": comma-separated names.
+ * "json": [{ id, name, etn }], which also enables picking on a create form (a post-create plugin associates them).
+ */
+export type PolyLookupOutput = "none" | "text" | "json";
 
 export interface CurrentRecordRef {
     entityTypeName: string;

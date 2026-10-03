@@ -53,4 +53,15 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
   <Import Project="$(PowerAppsTargetsPath)\Microsoft.PowerApps.VisualStudio.Solution.targets" Condition="Exists('$(PowerAppsTargetsPath)\Microsoft.PowerApps.VisualStudio.Solution.targets')" />
 
+  <!--
+    Overrides the SDK's CleanUpIntermediateFiles target. The solution zip is already generated at this point,
+    but the freshly packed obj\...\Metadata files are often briefly locked (file watchers / antivirus), which
+    made RemoveDir fail the whole build with MSB3231. Downgrade that to a warning instead.
+  -->
+  <Target Name="CleanUpIntermediateFiles" AfterTargets="PowerAppsPackage">
+    <RemoveDir Directories="$(SolutionPackagerMetadataWorkingDirectory)" Condition="Exists('$(SolutionPackagerMetadataWorkingDirectory)')" ContinueOnError="WarnAndContinue" />
+    <RemoveDir Directories="$(SolutionPackagerLocalizationWorkingDirectory)" Condition="Exists('$(SolutionPackagerLocalizationWorkingDirectory)')" ContinueOnError="WarnAndContinue" />
+    <Message Importance="High" Text="Completed intermediate files clean up." />
+  </Target>
+
 </Project>

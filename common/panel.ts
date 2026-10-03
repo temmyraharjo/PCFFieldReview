@@ -28,7 +28,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
     return node;
 }
 
-function icon(paths: string, size = 14, stroke = "currentColor"): SVGSVGElement {
+export function icon(paths: string, size = 14, stroke = "currentColor", strokeWidth = 2): SVGSVGElement {
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
     svg.setAttribute("width", String(size));
@@ -36,7 +36,7 @@ function icon(paths: string, size = 14, stroke = "currentColor"): SVGSVGElement 
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("fill", "none");
     svg.setAttribute("stroke", stroke);
-    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-width", String(strokeWidth));
     svg.setAttribute("stroke-linecap", "round");
     svg.setAttribute("stroke-linejoin", "round");
     svg.innerHTML = paths;

@@ -1,5 +1,5 @@
 import { ReviewSettings } from "./types";
-import { countLookupCandidates, fetchLookupCandidates } from "./dataverseApi";
+import { countLookupCandidates, fetchLookupCandidates, normalizeId } from "./dataverseApi";
 import { createDropdown, Dropdown, DropdownItem } from "./dropdown";
 
 export interface LookupPickerOptions {
@@ -17,10 +17,6 @@ export interface LookupEditor {
 
 const CREATE_KEY = "__ifr_create__";
 
-function normalizeId(id: string): string {
-    return id.replace(/[{}]/g, "").toLowerCase();
-}
-
 /**
  * Renders the Lookup value editor. By default ("simple") this is the same
  * plain dropdown the Choice control uses, listing existing records only --
@@ -34,11 +30,8 @@ function normalizeId(id: string): string {
  */
 export function attachLookupEditor(host: HTMLElement, options: LookupPickerOptions): LookupEditor {
     const { context, settings } = options;
-    const targets = settings.lookupTargets ?? [];
-    if (targets.length === 0) {
-        host.appendChild(document.createTextNode("(lookupTargets not configured)"));
-        return { setDisabled: () => undefined, destroy: () => undefined };
-    }
+    // The Lookup control rejects settings without lookupTargets before getting here.
+    const targets = settings.lookupTargets as string[];
 
     let disabled = options.disabled;
     let destroyed = false;

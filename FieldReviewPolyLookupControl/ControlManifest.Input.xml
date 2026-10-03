@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="Insurgo" constructor="FieldReviewLookupControl" version="1.0.14" display-name-key="FieldReviewLookupControl_Display" description-key="FieldReviewLookupControl_Desc" control-type="standard">
+  <control namespace="Insurgo" constructor="FieldReviewPolyLookupControl" version="1.0.14" display-name-key="FieldReviewPolyLookupControl_Display" description-key="FieldReviewPolyLookupControl_Desc" control-type="standard">
+
+    <!-- The same text family DCE PolyLookup binds to. The column only hosts the control
+         (and optionally receives the selection as text/JSON); the selection itself lives
+         in the relationship. -->
+    <type-group name="text">
+      <type>SingleLine.Text</type>
+      <type>SingleLine.TextArea</type>
+      <type>Multiple</type>
+    </type-group>
 
     <property name="value"
               display-name-key="Value_Display"
               description-key="Value_Desc"
-              of-type="Lookup.Simple"
+              of-type-group="text"
               usage="bound"
               required="true" />
 
@@ -19,7 +28,7 @@
     <resources>
       <code path="index.ts" order="1" />
       <css path="../common/css/FieldReview.css" order="1" />
-      <resx path="strings/FieldReviewLookupControl.1033.resx" version="1.0.0" />
+      <resx path="strings/FieldReviewPolyLookupControl.1033.resx" version="1.0.0" />
     </resources>
 
     <feature-usage>

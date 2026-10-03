@@ -4,3 +4,8 @@ generated/
 obj/
 bin/
 *.log
+
+# .graphifyignore
+node_modules/
+dist/
+*.generated.py

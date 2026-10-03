@@ -53,16 +53,13 @@ async function resolveNavigationProperty(
 
     const lookup = (async () => {
         try {
-            const url =
-                `${getClientUrl(context)}/api/data/v9.2/EntityDefinitions(LogicalName='${entity}')/ManyToOneRelationships` +
-                `?$select=ReferencingEntityNavigationPropertyName,ReferencedEntity` +
-                `&$filter=${encodeURIComponent(`ReferencingAttribute eq '${attribute}'`)}`;
-            const response = await fetch(url, {
-                credentials: "same-origin",
-                headers: { Accept: "application/json", "OData-MaxVersion": "4.0", "OData-Version": "4.0" },
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const body = (await response.json()) as {
+            const body = (await webApiFetch(
+                context,
+                "GET",
+                `EntityDefinitions(LogicalName='${entity}')/ManyToOneRelationships` +
+                    `?$select=ReferencingEntityNavigationPropertyName,ReferencedEntity` +
+                    `&$filter=${encodeURIComponent(`ReferencingAttribute eq '${attribute}'`)}`
+            )) as {
                 value: { ReferencingEntityNavigationPropertyName: string; ReferencedEntity: string }[];
             };
             // A multi-table lookup has one relationship per target table.
@@ -134,12 +131,7 @@ export function resolvePrimaryNameAttribute(context: ComponentFramework.Context<
     );
 }
 
-async function resolveCollectionName(
-    context: ComponentFramework.Context<any>,
-    logicalName: string,
-    override?: string
-): Promise<string> {
-    if (override) return override;
+export async function resolveCollectionName(context: ComponentFramework.Context<any>, logicalName: string): Promise<string> {
     if (logicalName === "systemuser") return SYSTEMUSER_COLLECTION;
     return resolveMetadataValue(
         context,
@@ -164,13 +156,14 @@ function stripBraces(guid: string): string {
     return guid.replace(/[{}]/g, "");
 }
 
-/** Current user's id, brace-free and lowercase to match ids the Web API returns. */
-export function getCurrentUserId(context: ComponentFramework.Context<any>): string {
-    return stripBraces(context.userSettings.userId).toLowerCase();
+/** A GUID brace-free and lowercase, to match ids the Web API returns. */
+export function normalizeId(id: string): string {
+    return stripBraces(id).toLowerCase();
 }
 
-export function getCurrentUserName(context: ComponentFramework.Context<any>): string {
-    return context.userSettings.userName ?? "";
+/** Current user's id, brace-free and lowercase. */
+export function getCurrentUserId(context: ComponentFramework.Context<any>): string {
+    return normalizeId(context.userSettings.userId);
 }
 
 /**
@@ -190,7 +183,7 @@ export function getCurrentUserName(context: ComponentFramework.Context<any>): st
  * implementation.
  */
 export function getCurrentRecordRef(context: ComponentFramework.Context<any>): CurrentRecordRef {
-    const contextInfo = (context.mode as unknown as { contextInfo?: Record<string, string> }).contextInfo;
+    const contextInfo = readContextInfo(context);
     if (!contextInfo || !contextInfo.entityId || !contextInfo.entityTypeName) {
         throw new Error(
             "Field Review control: could not determine the current record (context.mode.contextInfo is unavailable). " +
@@ -202,6 +195,64 @@ export function getCurrentRecordRef(context: ComponentFramework.Context<any>): C
         entityId: stripBraces(contextInfo.entityId),
         entityName: contextInfo.entityRecordName ?? "",
     };
+}
+
+function readContextInfo(context: ComponentFramework.Context<any>): Record<string, string> | undefined {
+    return (context.mode as unknown as { contextInfo?: Record<string, string> }).contextInfo;
+}
+
+/** The form's table logical name. Unlike getCurrentRecordRef, this also works on a create form. */
+export function getCurrentTableName(context: ComponentFramework.Context<any>): string {
+    const entityTypeName = readContextInfo(context)?.entityTypeName;
+    if (!entityTypeName) {
+        throw new Error(
+            "Field Review control: could not determine the current table (context.mode.contextInfo is unavailable)."
+        );
+    }
+    return entityTypeName;
+}
+
+/** The current record's id (brace-free, lowercase), or null on a create form that hasn't been saved yet. */
+export function tryGetCurrentRecordId(context: ComponentFramework.Context<any>): string | null {
+    const id = normalizeId(readContextInfo(context)?.entityId ?? "");
+    return id && id !== "00000000-0000-0000-0000-000000000000" ? id : null;
+}
+
+/**
+ * Calls the Web API directly, for what PCF's webAPI can't do: query metadata and
+ * associate/disassociate N:N records. `path` is relative to /api/data/v9.2/.
+ * Returns the parsed JSON body, or null for an empty (204) response.
+ */
+export async function webApiFetch(
+    context: ComponentFramework.Context<any>,
+    method: "GET" | "POST" | "DELETE",
+    path: string,
+    body?: unknown
+): Promise<any> {
+    const headers: Record<string, string> = {
+        Accept: "application/json",
+        "OData-MaxVersion": "4.0",
+        "OData-Version": "4.0",
+        Prefer: 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"',
+    };
+    if (body !== undefined) headers["Content-Type"] = "application/json; charset=utf-8";
+    const response = await fetch(`${getClientUrl(context)}/api/data/v9.2/${path}`, {
+        method,
+        credentials: "same-origin",
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const text = await response.text();
+    const json = text ? JSON.parse(text) : null;
+    if (!response.ok) {
+        throw new Error(json?.error?.message ?? `HTTP ${response.status}`);
+    }
+    return json;
+}
+
+/** Absolute Web API URL of a record, as `@odata.id` in an associate request requires. */
+export function recordODataId(context: ComponentFramework.Context<any>, entitySetName: string, id: string): string {
+    return `${getClientUrl(context)}/api/data/v9.2/${entitySetName}(${stripBraces(id)})`;
 }
 
 /**
@@ -412,5 +463,3 @@ export async function fetchLookupCandidates(
         name: (e[primaryNameAttribute] as string) ?? "(no name)",
     }));
 }
-
-export { resolveCollectionName };
