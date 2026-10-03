@@ -1,4 +1,4 @@
-import { RegardingMode, ReviewSettings } from "./types";
+import { AssignmentMode, RegardingMode, ReviewSettings } from "./types";
 
 const REQUIRED_KEYS: (keyof ReviewSettings)[] = [
     "commentTable",
@@ -6,9 +6,6 @@ const REQUIRED_KEYS: (keyof ReviewSettings)[] = [
     "commentStatusAttribute",
     "commentStatusOpenValue",
     "commentStatusResolvedValue",
-    "assignmentTable",
-    "assignmentCommentLookupAttribute",
-    "assignmentUserLookupAttribute",
 ];
 
 // Settings from the old per-assignee status design. Rejected so an outdated
@@ -23,6 +20,11 @@ const REMOVED_KEYS = [
 const REQUIRED_KEYS_BY_REGARDING_MODE: Record<RegardingMode, (keyof ReviewSettings)[]> = {
     text: ["regardingTableAttribute", "regardingIdAttribute"],
     lookup: ["regardingLookupAttribute"],
+};
+
+const REQUIRED_KEYS_BY_ASSIGNMENT_MODE: Record<AssignmentMode, (keyof ReviewSettings)[]> = {
+    table: ["assignmentTable", "assignmentCommentLookupAttribute", "assignmentUserLookupAttribute"],
+    lookup: ["commentAssigneeAttribute"],
 };
 
 /**
@@ -64,7 +66,18 @@ export function parseSettings(raw: string | null): ReviewSettings {
         );
     }
 
-    const missing = [...REQUIRED_KEYS, ...REQUIRED_KEYS_BY_REGARDING_MODE[regardingMode]].filter((key) => {
+    const assignmentMode = parsed.assignmentMode ?? "table";
+    if (!(assignmentMode in REQUIRED_KEYS_BY_ASSIGNMENT_MODE)) {
+        throw new Error(
+            `Field Review control: settingsJson assignmentMode must be "table" or "lookup" (got "${assignmentMode}").`
+        );
+    }
+
+    const missing = [
+        ...REQUIRED_KEYS,
+        ...REQUIRED_KEYS_BY_REGARDING_MODE[regardingMode],
+        ...REQUIRED_KEYS_BY_ASSIGNMENT_MODE[assignmentMode],
+    ].filter((key) => {
         const value = parsed[key];
         return value === undefined || value === null || value === "";
     });
@@ -77,6 +90,7 @@ export function parseSettings(raw: string | null): ReviewSettings {
     return {
         ...parsed,
         regardingMode,
+        assignmentMode,
         lookupMode: parsed.lookupMode ?? "simple",
         lookupAutoThreshold: parsed.lookupAutoThreshold ?? 25,
         lookupAllowCreate: parsed.lookupAllowCreate ?? false,

@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="Insurgo" constructor="FieldReviewControl" version="1.0.14" display-name-key="FieldReviewControl_Display" description-key="FieldReviewControl_Desc" control-type="standard">
+  <control namespace="Insurgo" constructor="FieldReviewControl" version="1.0.17" display-name-key="FieldReviewControl_Display" description-key="FieldReviewControl_Desc" control-type="standard">
 
     <type-group name="scalarValues">
       <type>SingleLine.Text</type>
       <type>Whole.None</type>
       <type>Currency</type>
       <type>Decimal</type>
+      <type>Multiple</type>
     </type-group>
 
     <property name="value"

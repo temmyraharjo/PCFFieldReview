@@ -9,3 +9,6 @@ bin/
 node_modules/
 dist/
 *.generated.py
+
+# ignore docs
+docs/

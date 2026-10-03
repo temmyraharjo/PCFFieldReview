@@ -1,6 +1,6 @@
 # Insurgo Field Review — PCF controls
 
-Four PCF field controls that add a "+" comment/assignment thread to a field on a
+Six PCF field controls that add a "+" comment/assignment thread to a field on a
 model-driven form: reviewers can comment on a field and assign the comment to
 multiple people. Each comment is open until any one of its assignees marks it
 resolved, which resolves it for everyone. The full history is visible to all.
@@ -17,24 +17,33 @@ runtime.) Rather than gamble on
 unconfirmed platform behaviour for something this foundational, this project
 ships one control per field family, built together from a single PCF project:
 
-- **FieldReviewControl** — bind to a Text, Whole Number, Currency or Decimal
-  field. Editable input: text respects the column's max length; numbers show
-  formatted (e.g. `$1,250.00`), switch to the plain number while typing, and
-  are checked against the column's min/max and decimal places.
+- **FieldReviewControl** — bind to a Single Line of Text, Multiple Lines of
+  Text, Whole Number, Currency or Decimal field. Editable input: text respects
+  the column's max length; multi-line text gets a text area that grows with
+  its content up to a cap, then scrolls; numbers show formatted (e.g.
+  `$1,250.00`), switch to the plain number while typing, and are checked
+  against the column's min/max and decimal places. A Multiple Lines of Text
+  column in **rich text** format shows read-only: a plain text area would
+  expose and could rewrite its formatting.
 - **FieldReviewLookupControl** — bind to a Lookup field. Same comment thread,
   plus an editable dropdown of existing records. There's no way to create a
   record from the field unless `lookupAllowCreate` is set (see below).
 - **FieldReviewChoiceControl** — bind to a Choice (option set) field. Same
   comment thread, plus an editable dropdown of the field's options.
+- **FieldReviewYesNoControl** — bind to a Yes/No (two options) field. Same
+  dropdown as the Choice control, showing the column's own two labels.
+- **FieldReviewDateControl** — bind to a Date Only or Date and Time field.
+  Shows the date in the user's own format and switches to the browser's date
+  (and time) picker while editing. See caveat 8 on time zones.
 - **FieldReviewPolyLookupControl** — a multi-select lookup in the style of
   [DCE PolyLookup](https://github.com/khoait/DCE.PCF/wiki/PolyLookup), with the
   same comment thread. Bind it to a text column that hosts it; the selection
   lives in an N:N, custom N:N or Connection relationship. See
   [Multi-select (PolyLookup) control](#multi-select-polylookup-control).
 
-The Lookup and Choice controls render the value with the same dropdown
-(`common/dropdown.ts`), so both field types look and behave the same on the
-form: a plain list with a `---` entry for "no value", disabled when the form
+The Lookup, Choice and Yes/No controls render the value with the same
+dropdown (`common/dropdown.ts`), so those field types look and behave the same
+on the form: a plain list with a `---` entry for "no value", disabled when the form
 or field is read-only.
 
 All editors, including the text/number input, become read-only only when the
@@ -56,10 +65,12 @@ common/                    shared TypeScript and the one stylesheet (css/) used 
 FieldReviewControl/        manifest, index.ts, strings
 FieldReviewLookupControl/  manifest, index.ts, strings
 FieldReviewChoiceControl/  manifest, index.ts, strings
+FieldReviewYesNoControl/   manifest, index.ts, strings
+FieldReviewDateControl/    manifest, index.ts, strings
 FieldReviewPolyLookupControl/  manifest, index.ts, strings
 ```
 
-A single `npm install && npm run build` at the root builds all four controls
+A single `npm install && npm run build` at the root builds all six controls
 into `out/controls/<ControlName>/` (verified). You don't need the `pac` CLI
 for that step. You need the Power Platform CLI only to package or push the
 compiled controls into a solution.
@@ -75,19 +86,23 @@ and clients with different publisher prefixes.
 
 | Column type on the form | Control to add | Extra keys on top of the shared ones |
 |---|---|---|
-| Single Line of Text, Whole Number, Currency, Decimal | FieldReviewControl | none |
+| Single Line of Text, Multiple Lines of Text, Whole Number, Currency, Decimal | FieldReviewControl | none |
 | Choice | FieldReviewChoiceControl | none |
+| Yes/No | FieldReviewYesNoControl | none |
+| Date Only, Date and Time | FieldReviewDateControl | none |
 | Lookup | FieldReviewLookupControl | `lookupTargets` (required), optional `lookup*` keys |
 | Several related records (N:N, custom intersect table, Connection) | FieldReviewPolyLookupControl, bound to a text column | `polyLookup*` keys |
 
-Date Only, Date and Time, Yes/No, Multiple Lines of Text, multi-select Choices,
-File and Image columns are **not supported**: no control binds to them, so
-they won't appear in the form designer's control list for those fields.
+Multi-select Choices, File and Image columns are **not supported**: no
+control binds to them, so they won't appear in the form designer's control
+list for those fields. Multiple Lines of Text in rich text format can be
+bound but shows read-only.
 
-### Text, number and Choice fields
+### Text, number, Choice, Yes/No and date fields
 
 These need only the shared comment/assignment keys, so the same JSON works on
-any Text, Whole Number, Currency, Decimal or Choice field. A complete example:
+any Text, Multiple Lines of Text, Whole Number, Currency, Decimal, Choice,
+Yes/No or date field. A complete example:
 
 ```json
 {
@@ -112,6 +127,42 @@ any Text, Whole Number, Currency, Decimal or Choice field. A complete example:
 }
 ```
 
+That example links each comment to its record with `"regardingMode": "text"`:
+two plain text columns hold the record's table name and GUID, so one comment
+table serves every table with no schema change. With `"regardingMode":
+"lookup"`, a real Lookup column on the comment table points at the form's
+table instead, which adds a comments subgrid on the parent form, a clickable
+record name in views, and cascade delete, at the cost of one Lookup column per
+parent table. The same settings in `"lookup"` mode, for a field on an
+Opportunity form:
+
+```json
+{
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingMode": "lookup",
+  "regardingLookupAttribute": "ins_opportunity",
+  "regardingNameAttribute": "ins_regardingname",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+  "commentResolvedOnAttribute": "ins_resolvedon",
+  "commentResolvedByAttribute": "ins_resolvedby",
+
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee"
+}
+```
+
+Here `regardingTableAttribute` and `regardingIdAttribute` are optional: set
+them too and they're still filled in, which helps a single view across all
+parent tables. The assignment table's `assignmentRegarding*` copies are left
+out because "my open reviews" can follow the comment's Lookup instead. See
+[Linking comments to the parent record](#linking-comments-to-the-parent-record)
+for switching an existing field between modes.
+
 The bare minimum, with a Yes/No status column, the label drawn by the control
 and the panel opening next to the field:
 
@@ -128,6 +179,84 @@ and the panel opening next to the field:
   "commentStatusAttribute": "ins_isresolved",
   "commentStatusOpenValue": false,
   "commentStatusResolvedValue": true,
+
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee"
+}
+```
+
+### Samples by field type
+
+The keys don't change with the field type, so any example above works on any
+of these fields. These complete samples each pair a field type with a typical
+setup, using the column names from [Dataverse schema to create](#dataverse-schema-to-create).
+
+A **Multiple Lines of Text** field (e.g. Description), several assignees per
+comment, panel centred on screen:
+
+```json
+{
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingTableAttribute": "ins_regardingtable",
+  "regardingIdAttribute": "ins_regardingid",
+  "regardingNameAttribute": "ins_regardingname",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+  "commentResolvedOnAttribute": "ins_resolvedon",
+  "commentResolvedByAttribute": "ins_resolvedby",
+
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee"
+}
+```
+
+A **Yes/No** field (e.g. Do Not Email), one assignee per comment stored as the
+comment's owner, label drawn by the control (hide the form's own label):
+
+```json
+{
+  "renderLabel": true,
+  "labelWidth": "180px",
+
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingTableAttribute": "ins_regardingtable",
+  "regardingIdAttribute": "ins_regardingid",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+  "commentResolvedOnAttribute": "ins_resolvedon",
+
+  "assignmentMode": "lookup",
+  "commentAssigneeAttribute": "ownerid"
+}
+```
+
+A **Date Only** or **Date and Time** field (e.g. Est. Close Date) on an
+Opportunity form, comments linked to the opportunity through a real Lookup
+column, panel opening next to the field:
+
+```json
+{
+  "panelPlacement": "field",
+
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingMode": "lookup",
+  "regardingLookupAttribute": "ins_opportunity",
+  "regardingNameAttribute": "ins_regardingname",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+  "commentResolvedOnAttribute": "ins_resolvedon",
+  "commentResolvedByAttribute": "ins_resolvedby",
 
   "assignmentTable": "ins_reviewassignment",
   "assignmentCommentLookupAttribute": "ins_comment",
@@ -211,7 +340,7 @@ For a multi-select field, see
 |---|---|---|
 | `renderLabel` | no | `true` draws the field label inside the control with the "+" and comment badge next to it. A control can't draw into the form's own label, so **hide the form label** for that field (field properties > "Hide label") when you turn this on. Default `false`: the "+" sits after the value. |
 | `labelWidth` | no | Width of the label drawn by `renderLabel`, as a CSS length, e.g. `"180px"`. Match it to the other labels on the form. Default `"160px"`. |
-| `panelPlacement` | no | Where the comment panel opens: `"center"` (default) of the screen, or `"field"` below the "+" or badge that was clicked (above it when there's more room there). See [The comment panel](#the-comment-panel). |
+| `panelPlacement` | no | Where the comment panel opens: `"field"` (default) below the "+" or badge that was clicked (above it when there's more room there), or `"center"` of the screen. See [The comment panel](#the-comment-panel). |
 | `commentTable` | yes | Logical name of the table storing one row per comment. |
 | `commentTextAttribute` | yes | Column holding the comment text. |
 | `regardingMode` | no | How a comment links to its parent record: `"text"` (default) or `"lookup"`. See [Linking comments to the parent record](#linking-comments-to-the-parent-record). |
@@ -226,9 +355,12 @@ For a multi-select field, see
 | `commentResolvedOnAttribute` | no | Date and Time column on the comment table, stamped when the comment is resolved. |
 | `commentResolvedByAttribute` | no | Lookup-to-User column on the comment table, set to whoever resolved the comment. |
 | `commentResolvedByNavigationProperty` | no | Override for `commentResolvedByAttribute`'s navigation property. Normally not needed (see caveat 3). |
-| `assignmentTable` | yes | Logical name of the child table storing one row per assignee. |
-| `assignmentCommentLookupAttribute` | yes | Column on the assignment table: the Lookup back to the parent comment row. |
-| `assignmentUserLookupAttribute` | yes | Column on the assignment table: the Lookup to `systemuser` (the assignee). |
+| `assignmentMode` | no | Where assignees are stored: `"table"` (default), one row per assignee in `assignmentTable`, so a comment can have several; or `"lookup"`, one assignee in a Lookup-to-User column on the comment table. See [One assignee per comment](#one-assignee-per-comment). |
+| `commentAssigneeAttribute` | `"lookup"` assignment mode | Lookup-to-User column on the comment table holding the assignee, e.g. `ownerid`. |
+| `commentAssigneeNavigationProperty` | no | Override for `commentAssigneeAttribute`'s navigation property. Normally not needed (see caveat 3). |
+| `assignmentTable` | `"table"` assignment mode | Logical name of the child table storing one row per assignee. |
+| `assignmentCommentLookupAttribute` | `"table"` assignment mode | Column on the assignment table: the Lookup back to the parent comment row. |
+| `assignmentUserLookupAttribute` | `"table"` assignment mode | Column on the assignment table: the Lookup to `systemuser` (the assignee). |
 | `assignmentCommentNavigationProperty` / `assignmentUserNavigationProperty` | no | Overrides for those two lookups' navigation properties. Normally not needed (see caveat 3). |
 | `assignmentRegardingTableAttribute` / `assignmentRegardingIdAttribute` | no | Denormalized copies of the regarding info directly on the assignment row, for a cross-table "assigned to me" view. |
 | `lookupTargets` | Lookup control only | Array of target table logical names. Not derivable from PCF metadata — must be listed explicitly. More than one entry (a polymorphic-style lookup) always forces the native search dialog; see below. |
@@ -252,14 +384,51 @@ entry that opens the quick create form and selects the saved record).
 The panel opens over the form (it's attached to the page, not the field, so
 the form's field cell can't clip it). Only the comment history scrolls inside
 it: the current value, the compose box, the assignee picker and the
-Cancel/Assign buttons always show in full. With `panelPlacement: "field"` the
-panel goes below the "+", or above it if it only fits there, and shrinks the
-history first to make it fit. Only when there isn't room for even that on
-either side does the whole panel scroll.
+Cancel/Assign buttons always show in full. By default the panel goes below the
+"+", or above it if it only fits there, and shrinks the history first to make
+it fit. Only when there isn't room for even that on either side does the whole
+panel scroll. Set `panelPlacement: "center"` to open it in the middle of the
+screen instead.
 
 The panel follows the field while the form scrolls. Scrolling, including
 dragging a scrollbar, doesn't close it. Clicking anywhere else on the form,
 the X or Cancel does.
+
+### One assignee per comment
+
+By default a comment can be assigned to several people, each stored as a row
+in the assignment table. If one person is always enough, set
+`assignmentMode` to `"lookup"` and name a Lookup-to-User column on the comment
+table itself. The assignment table and its keys aren't needed then:
+
+```json
+{
+  "assignmentMode": "lookup",
+  "commentAssigneeAttribute": "ownerid"
+}
+```
+
+(merged into the usual comment keys, without the `assignment*` ones). The
+assignee picker then holds one person, and picking someone else replaces
+them. Assign still needs someone picked. The assignee is the one who can mark
+the comment resolved, as in `"table"` mode.
+
+Things to know when the column is `ownerid`:
+
+- Setting the owner assigns the record, so reviewers need the **Assign**
+  privilege on the comment table, or posting fails.
+- The picker offers users only. If a comment is later reassigned to a team,
+  the thread shows the team's name and nobody can mark it resolved from the
+  control.
+- A "my open reviews" view becomes a plain view on the comment table:
+  owner = current user and status = Open.
+
+Switching a field between `"table"` and `"lookup"` doesn't move existing
+assignments. Comments created under `"table"` mode keep their assignment rows,
+but `"lookup"` mode reads the comment's own column instead: with a dedicated
+column they show no assignee, and with `ownerid` they show their owner
+(usually whoever wrote the comment) as the assignee, who can then resolve
+them while the original assignees can't.
 
 ### Linking comments to the parent record
 
@@ -382,7 +551,10 @@ standardizing on for this project (the examples above use `ins_`):
 - `ins_assignee` — Lookup to User (systemuser)
 - `ins_regardingtable` / `ins_regardingid` — Single Line of Text (optional, for a cross-table "assigned to me" view)
 
-The assignment table only records who is assigned to which comment, one row
+The assignment table is only needed in the default `"table"` assignment
+mode; with `assignmentMode: "lookup"` the assignee is a column on the comment
+table instead (see [One assignee per comment](#one-assignee-per-comment)).
+It only records who is assigned to which comment, one row
 per person. It has no status of its own. For a "my open reviews" view, build
 a view on the assignment table filtered to assignee = current user, and add a
 filter on the related comment's status being Open.
@@ -457,25 +629,21 @@ worth knowing about rather than discovering at 2am.
 7. **The PolyLookup's bound column uses a `SingleLine.Text` /
    `SingleLine.TextArea` / `Multiple` type-group.** That's a documented
    same-family group, and the one DCE PolyLookup ships with.
+8. **Date time zones follow community-documented behaviour.** Microsoft
+   documents how each Date and Time behaviour is stored, but not the value a
+   PCF control receives. The date control treats a **User Local** value as a
+   UTC instant shown in the user's Dataverse time zone (not the browser's),
+   and **Date Only** and **Time Zone Independent** values as the stored date
+   and time unchanged (`common/dateValue.ts`). Before relying on it, check a
+   date of each behaviour on a real form with the browser's time zone set
+   differently from the user's: what the control shows and saves should match
+   the native field.
+9. **Choosing `---` on a Yes/No field** sends an empty value. Most Yes/No
+   columns always hold a value, so the platform may keep or restore the
+   column's default instead; the dropdown then shows what was kept.
 
 ## Building and packaging
 
-From the repo root, `npm install && npm run build` builds all four controls
+From the repo root, `npm install && npm run build` builds all six controls
 into `out/controls/`. For packaging into a solution, quick deploys with
 `pac pcf push`, and adding the controls to a form, see [BUILD.md](BUILD.md).
-
-## Not built yet
-
-- Notification when someone is assigned (deliberately out of scope — needs a
-  plugin or Power Automate flow watching the assignment table, discussed and
-  deferred earlier in this project).
-- A visual "has an open thread / fully resolved / no comments" state on the
-  field itself, distinct from the badge, so a reviewer can scan a form
-  without opening every panel.
-- Date, Yes/No and Multiple Lines of Text fields. They would need their own
-  editors (and, for dates, time zone handling) before the review thread can
-  sit on them.
-- Multi-target lookup candidates merged into the dropdown.
-- PolyLookup: searching by a saved view / FetchXML (with extra columns shown
-  per suggestion), as DCE PolyLookup does. Only a primary-name search with an
-  OData filter is supported today.

@@ -29,6 +29,8 @@ export type LookupMode = "auto" | "simple" | "search";
 
 export type RegardingMode = "text" | "lookup";
 
+export type AssignmentMode = "table" | "lookup";
+
 /**
  * Everything the control needs to know about the reviewer's Dataverse schema.
  * All logical names are supplied by the maker when configuring the field
@@ -44,7 +46,7 @@ export interface ReviewSettings {
     renderLabel?: boolean;
     /** Width of the label drawn by renderLabel, as a CSS length. Default "160px". */
     labelWidth?: string;
-    /** Where the comment panel opens: "center" (default) of the screen, or "field" next to the "+" / badge clicked. */
+    /** Where the comment panel opens: "field" (default) next to the "+" / badge clicked, or "center" of the screen. */
     panelPlacement?: "center" | "field";
 
     // --- Comment table ---
@@ -90,13 +92,25 @@ export interface ReviewSettings {
     /** Override for commentResolvedByAttribute's navigation property. Normally resolved automatically. */
     commentResolvedByNavigationProperty?: string;
 
-    // --- Assignment (child) table ---
+    // --- Assignees ---
+    /**
+     * Where a comment's assignees are stored.
+     * "table" (default): one row per assignee in assignmentTable, so a comment can have several.
+     * "lookup": a single Lookup-to-User column on the comment table (commentAssigneeAttribute), e.g. ownerid.
+     */
+    assignmentMode?: AssignmentMode;
+    /** "lookup" mode: Lookup-to-User column on the comment table holding the one assignee, e.g. "ownerid". */
+    commentAssigneeAttribute?: string;
+    /** Override for commentAssigneeAttribute's navigation property. Normally resolved automatically. */
+    commentAssigneeNavigationProperty?: string;
+
+    // --- Assignment (child) table, "table" mode only ---
     /** Logical name of the table that stores one row per person assigned to a comment. */
-    assignmentTable: string;
+    assignmentTable?: string;
     /** Column on the assignment table that is the lookup back to the parent comment row. */
-    assignmentCommentLookupAttribute: string;
+    assignmentCommentLookupAttribute?: string;
     /** Column on the assignment table that is the lookup to systemuser (the assignee). */
-    assignmentUserLookupAttribute: string;
+    assignmentUserLookupAttribute?: string;
     /** Override for assignmentCommentLookupAttribute's navigation property. Normally resolved automatically. */
     assignmentCommentNavigationProperty?: string;
     /** Override for assignmentUserLookupAttribute's navigation property. Normally resolved automatically. */

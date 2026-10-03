@@ -139,6 +139,17 @@
     border-color: transparent;
 }
 
+/* Multiple Lines of Text: grows with its content (fitHeight), then scrolls. */
+.ifr-input.ifr-textarea-field {
+    height: auto;
+    min-height: 64px;
+    max-height: 240px;
+    padding: 6px 10px;
+    line-height: 1.4;
+    resize: none;
+    overflow-y: auto;
+}
+
 .ifr-field-error {
     font-size: 12px;
     color: #a4262c;
@@ -187,6 +198,12 @@
     gap: 14px;
     max-height: 560px;
     overflow-y: auto;
+}
+
+/* When the panel is short of room only the history (below) gives up height; the
+   compose box, assignee picker and buttons keep their size. */
+.ifr-panel > * {
+    flex-shrink: 0;
 }
 
 .ifr-panel-header {

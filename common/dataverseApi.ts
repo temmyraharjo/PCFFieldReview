@@ -283,33 +283,44 @@ export async function fetchCommentHistory(
     if (comments.length === 0) return [];
 
     const commentIdAttribute = await resolvePrimaryIdAttribute(context, settings.commentTable);
-    const assignmentIdAttribute = await resolvePrimaryIdAttribute(context, settings.assignmentTable);
-    const commentIds = comments.map((c) => c[commentIdAttribute] as string);
-    const idFilter = commentIds
-        // Lookups are filtered on their _<column>_value property, with the GUID unquoted.
-        .map((id) => `_${settings.assignmentCommentLookupAttribute}_value eq ${id}`)
-        .join(" or ");
-
-    const assignmentResult = await context.webAPI.retrieveMultipleRecords(
-        settings.assignmentTable,
-        `?$filter=${encodeURIComponent(idFilter)}`
-    );
-
     const assignmentsByComment = new Map<string, AssignmentRecord[]>();
-    for (const a of assignmentResult.entities) {
-        const commentId = a[`_${settings.assignmentCommentLookupAttribute}_value`] as string;
-        const assigneeId = a[`_${settings.assignmentUserLookupAttribute}_value`] as string;
+    // Adds the assignee held by `userLookupAttribute` on `row` (an assignment row, or the comment itself in "lookup" mode).
+    const addAssignee = (commentId: string, assignmentId: string, row: ComponentFramework.WebApi.Entity, userLookupAttribute: string) => {
+        const assigneeId = row[`_${userLookupAttribute}_value`] as string | undefined;
+        if (!assigneeId) return;
         const assigneeName =
-            (a[`_${settings.assignmentUserLookupAttribute}_value@OData.Community.Display.V1.FormattedValue`] as string) ??
-            "";
-
+            (row[`_${userLookupAttribute}_value@OData.Community.Display.V1.FormattedValue`] as string) ?? "";
         const list = assignmentsByComment.get(commentId) ?? [];
-        list.push({
-            id: a[assignmentIdAttribute] as string,
-            assigneeId,
-            assigneeName,
-        });
+        list.push({ id: assignmentId, assigneeId, assigneeName });
         assignmentsByComment.set(commentId, list);
+    };
+
+    if (settings.assignmentMode === "lookup") {
+        for (const c of comments) {
+            const id = c[commentIdAttribute] as string;
+            addAssignee(id, id, c, settings.commentAssigneeAttribute as string);
+        }
+    } else {
+        const assignmentTable = settings.assignmentTable as string;
+        const commentLookupAttribute = settings.assignmentCommentLookupAttribute as string;
+        const assignmentIdAttribute = await resolvePrimaryIdAttribute(context, assignmentTable);
+        const idFilter = comments
+            // Lookups are filtered on their _<column>_value property, with the GUID unquoted.
+            .map((c) => `_${commentLookupAttribute}_value eq ${c[commentIdAttribute] as string}`)
+            .join(" or ");
+
+        const assignmentResult = await context.webAPI.retrieveMultipleRecords(
+            assignmentTable,
+            `?$filter=${encodeURIComponent(idFilter)}`
+        );
+        for (const a of assignmentResult.entities) {
+            addAssignee(
+                a[`_${commentLookupAttribute}_value`] as string,
+                a[assignmentIdAttribute] as string,
+                a,
+                settings.assignmentUserLookupAttribute as string
+            );
+        }
     }
 
     return comments.map((c) => {
@@ -335,8 +346,9 @@ export async function fetchCommentHistory(
 }
 
 /**
- * Creates one open comment row against the current record/field, plus one
- * assignment row per assignee. Assignment rows only record who is assigned.
+ * Creates one open comment row against the current record/field. In "table"
+ * mode it adds one assignment row per assignee (rows only record who is
+ * assigned); in "lookup" mode the single assignee goes on the comment itself.
  */
 export async function createCommentWithAssignments(
     context: ComponentFramework.Context<any>,
@@ -374,22 +386,36 @@ export async function createCommentWithAssignments(
         commentData[settings.regardingNameAttribute] = record.entityName;
     }
 
+    const userCollection = await resolveCollectionName(context, "systemuser");
+    if (settings.assignmentMode === "lookup") {
+        const assigneeNavigationProperty = await resolveNavigationProperty(
+            context,
+            settings.commentTable,
+            settings.commentAssigneeAttribute as string,
+            "systemuser",
+            settings.commentAssigneeNavigationProperty
+        );
+        commentData[`${assigneeNavigationProperty}@odata.bind`] = `/${userCollection}(${assigneeIds[0]})`;
+        await context.webAPI.createRecord(settings.commentTable, commentData);
+        return;
+    }
+
     const created = await context.webAPI.createRecord(settings.commentTable, commentData);
     const commentId = created.id;
 
-    const userCollection = await resolveCollectionName(context, "systemuser");
+    const assignmentTable = settings.assignmentTable as string;
     const commentCollection = await resolveCollectionName(context, settings.commentTable);
     const commentNavigationProperty = await resolveNavigationProperty(
         context,
-        settings.assignmentTable,
-        settings.assignmentCommentLookupAttribute,
+        assignmentTable,
+        settings.assignmentCommentLookupAttribute as string,
         settings.commentTable,
         settings.assignmentCommentNavigationProperty
     );
     const userNavigationProperty = await resolveNavigationProperty(
         context,
-        settings.assignmentTable,
-        settings.assignmentUserLookupAttribute,
+        assignmentTable,
+        settings.assignmentUserLookupAttribute as string,
         "systemuser",
         settings.assignmentUserNavigationProperty
     );
@@ -405,7 +431,7 @@ export async function createCommentWithAssignments(
         if (settings.assignmentRegardingIdAttribute) {
             assignmentData[settings.assignmentRegardingIdAttribute] = record.entityId;
         }
-        await context.webAPI.createRecord(settings.assignmentTable, assignmentData);
+        await context.webAPI.createRecord(assignmentTable, assignmentData);
     }
 }
 

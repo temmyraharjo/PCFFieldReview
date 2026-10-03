@@ -9,6 +9,14 @@ interface FieldLayout {
     reviewHost: HTMLElement;
 }
 
+/** A field's editor is read-only when the form disables it or column security makes it non-editable. */
+export function isFieldReadOnly(
+    context: ComponentFramework.Context<any>,
+    security: ComponentFramework.PropertyHelper.SecurityValues | undefined
+): boolean {
+    return context.mode.isControlDisabled || (security !== undefined && !security.editable);
+}
+
 export interface ReviewControlOptions {
     /** Extra checks on the parsed settings; throw to show the message instead of the control. */
     validate?: (settings: ReviewSettings) => void;
