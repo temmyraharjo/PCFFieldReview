@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="Insurgo" constructor="FieldReviewYesNoControl" version="1.0.14" display-name-key="FieldReviewYesNoControl_Display" description-key="FieldReviewYesNoControl_Desc" control-type="standard">
+  <control namespace="Insurgo" constructor="FieldReviewYesNoControl" version="1.0.17" display-name-key="FieldReviewYesNoControl_Display" description-key="FieldReviewYesNoControl_Desc" control-type="standard">
 
     <property name="value"
               display-name-key="Value_Display"

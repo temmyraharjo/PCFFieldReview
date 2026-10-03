@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest>
-  <control namespace="Insurgo" constructor="FieldReviewPolyLookupControl" version="1.0.14" display-name-key="FieldReviewPolyLookupControl_Display" description-key="FieldReviewPolyLookupControl_Desc" control-type="standard">
+  <control namespace="Insurgo" constructor="FieldReviewPolyLookupControl" version="1.0.17" display-name-key="FieldReviewPolyLookupControl_Display" description-key="FieldReviewPolyLookupControl_Desc" control-type="standard">
 
     <!-- The same text family DCE PolyLookup binds to. The column only hosts the control
          (and optionally receives the selection as text/JSON); the selection itself lives
