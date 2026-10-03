@@ -155,6 +155,8 @@ export function buildReviewPanel(options: PanelOptions): HTMLElement {
             for (const u of candidates) {
                 const row = el("div", "ifr-suggest-row", u["fullname"] as string);
                 row.addEventListener("click", () => {
+                    // "lookup" mode stores one assignee, so a new pick replaces the current one.
+                    if (settings.assignmentMode === "lookup") selectedAssignees.length = 0;
                     selectedAssignees.push({ id: u["systemuserid"] as string, name: u["fullname"] as string });
                     renderChips();
                     assignInput.value = "";
