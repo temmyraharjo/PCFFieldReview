@@ -285,13 +285,13 @@ export async function fetchCommentHistory(
     const commentIdAttribute = await resolvePrimaryIdAttribute(context, settings.commentTable);
     const assignmentsByComment = new Map<string, AssignmentRecord[]>();
     // Adds the assignee held by `userLookupAttribute` on `row` (an assignment row, or the comment itself in "lookup" mode).
-    const addAssignee = (commentId: string, id: string, row: ComponentFramework.WebApi.Entity, userLookupAttribute: string) => {
+    const addAssignee = (commentId: string, assignmentId: string, row: ComponentFramework.WebApi.Entity, userLookupAttribute: string) => {
         const assigneeId = row[`_${userLookupAttribute}_value`] as string | undefined;
         if (!assigneeId) return;
         const assigneeName =
             (row[`_${userLookupAttribute}_value@OData.Community.Display.V1.FormattedValue`] as string) ?? "";
         const list = assignmentsByComment.get(commentId) ?? [];
-        list.push({ id, assigneeId, assigneeName });
+        list.push({ id: assignmentId, assigneeId, assigneeName });
         assignmentsByComment.set(commentId, list);
     };
 
