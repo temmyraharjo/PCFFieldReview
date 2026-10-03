@@ -340,7 +340,7 @@ For a multi-select field, see
 |---|---|---|
 | `renderLabel` | no | `true` draws the field label inside the control with the "+" and comment badge next to it. A control can't draw into the form's own label, so **hide the form label** for that field (field properties > "Hide label") when you turn this on. Default `false`: the "+" sits after the value. |
 | `labelWidth` | no | Width of the label drawn by `renderLabel`, as a CSS length, e.g. `"180px"`. Match it to the other labels on the form. Default `"160px"`. |
-| `panelPlacement` | no | Where the comment panel opens: `"center"` (default) of the screen, or `"field"` below the "+" or badge that was clicked (above it when there's more room there). See [The comment panel](#the-comment-panel). |
+| `panelPlacement` | no | Where the comment panel opens: `"field"` (default) below the "+" or badge that was clicked (above it when there's more room there), or `"center"` of the screen. See [The comment panel](#the-comment-panel). |
 | `commentTable` | yes | Logical name of the table storing one row per comment. |
 | `commentTextAttribute` | yes | Column holding the comment text. |
 | `regardingMode` | no | How a comment links to its parent record: `"text"` (default) or `"lookup"`. See [Linking comments to the parent record](#linking-comments-to-the-parent-record). |
@@ -384,10 +384,11 @@ entry that opens the quick create form and selects the saved record).
 The panel opens over the form (it's attached to the page, not the field, so
 the form's field cell can't clip it). Only the comment history scrolls inside
 it: the current value, the compose box, the assignee picker and the
-Cancel/Assign buttons always show in full. With `panelPlacement: "field"` the
-panel goes below the "+", or above it if it only fits there, and shrinks the
-history first to make it fit. Only when there isn't room for even that on
-either side does the whole panel scroll.
+Cancel/Assign buttons always show in full. By default the panel goes below the
+"+", or above it if it only fits there, and shrinks the history first to make
+it fit. Only when there isn't room for even that on either side does the whole
+panel scroll. Set `panelPlacement: "center"` to open it in the middle of the
+screen instead.
 
 The panel follows the field while the form scrolls. Scrolling, including
 dragging a scrollbar, doesn't close it. Clicking anywhere else on the form,

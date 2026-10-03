@@ -46,7 +46,7 @@ export interface ReviewSettings {
     renderLabel?: boolean;
     /** Width of the label drawn by renderLabel, as a CSS length. Default "160px". */
     labelWidth?: string;
-    /** Where the comment panel opens: "center" (default) of the screen, or "field" next to the "+" / badge clicked. */
+    /** Where the comment panel opens: "field" (default) next to the "+" / badge clicked, or "center" of the screen. */
     panelPlacement?: "center" | "field";
 
     // --- Comment table ---

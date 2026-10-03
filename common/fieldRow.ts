@@ -132,7 +132,7 @@ export function attachFieldReview(host: HTMLElement, options: FieldRowOptions): 
         let left: number;
         let top: number;
         let height: number;
-        if ((options.settings.panelPlacement ?? "center") === "center") {
+        if (options.settings.panelPlacement === "center") {
             const available = Math.max(200, Math.min(cap, vh - 2 * margin));
             height = Math.min(naturalHeight, available);
             panel.style.maxHeight = `${available}px`;
