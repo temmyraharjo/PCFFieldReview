@@ -200,6 +200,12 @@
     overflow-y: auto;
 }
 
+/* When the panel is short of room only the history (below) gives up height; the
+   compose box, assignee picker and buttons keep their size. */
+.ifr-panel > * {
+    flex-shrink: 0;
+}
+
 .ifr-panel-header {
     display: flex;
     align-items: flex-start;
