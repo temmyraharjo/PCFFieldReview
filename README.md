@@ -226,9 +226,12 @@ For a multi-select field, see
 | `commentResolvedOnAttribute` | no | Date and Time column on the comment table, stamped when the comment is resolved. |
 | `commentResolvedByAttribute` | no | Lookup-to-User column on the comment table, set to whoever resolved the comment. |
 | `commentResolvedByNavigationProperty` | no | Override for `commentResolvedByAttribute`'s navigation property. Normally not needed (see caveat 3). |
-| `assignmentTable` | yes | Logical name of the child table storing one row per assignee. |
-| `assignmentCommentLookupAttribute` | yes | Column on the assignment table: the Lookup back to the parent comment row. |
-| `assignmentUserLookupAttribute` | yes | Column on the assignment table: the Lookup to `systemuser` (the assignee). |
+| `assignmentMode` | no | Where assignees are stored: `"table"` (default), one row per assignee in `assignmentTable`, so a comment can have several; or `"lookup"`, one assignee in a Lookup-to-User column on the comment table. See [One assignee per comment](#one-assignee-per-comment). |
+| `commentAssigneeAttribute` | `"lookup"` assignment mode | Lookup-to-User column on the comment table holding the assignee, e.g. `ownerid`. |
+| `commentAssigneeNavigationProperty` | no | Override for `commentAssigneeAttribute`'s navigation property. Normally not needed (see caveat 3). |
+| `assignmentTable` | `"table"` assignment mode | Logical name of the child table storing one row per assignee. |
+| `assignmentCommentLookupAttribute` | `"table"` assignment mode | Column on the assignment table: the Lookup back to the parent comment row. |
+| `assignmentUserLookupAttribute` | `"table"` assignment mode | Column on the assignment table: the Lookup to `systemuser` (the assignee). |
 | `assignmentCommentNavigationProperty` / `assignmentUserNavigationProperty` | no | Overrides for those two lookups' navigation properties. Normally not needed (see caveat 3). |
 | `assignmentRegardingTableAttribute` / `assignmentRegardingIdAttribute` | no | Denormalized copies of the regarding info directly on the assignment row, for a cross-table "assigned to me" view. |
 | `lookupTargets` | Lookup control only | Array of target table logical names. Not derivable from PCF metadata — must be listed explicitly. More than one entry (a polymorphic-style lookup) always forces the native search dialog; see below. |
@@ -260,6 +263,38 @@ either side does the whole panel scroll.
 The panel follows the field while the form scrolls. Scrolling, including
 dragging a scrollbar, doesn't close it. Clicking anywhere else on the form,
 the X or Cancel does.
+
+### One assignee per comment
+
+By default a comment can be assigned to several people, each stored as a row
+in the assignment table. If one person is always enough, set
+`assignmentMode` to `"lookup"` and name a Lookup-to-User column on the comment
+table itself. The assignment table and its keys aren't needed then:
+
+```json
+{
+  "assignmentMode": "lookup",
+  "commentAssigneeAttribute": "ownerid"
+}
+```
+
+(merged into the usual comment keys, without the `assignment*` ones). The
+assignee picker then holds one person, and picking someone else replaces
+them. Assign still needs someone picked. The assignee is the one who can mark
+the comment resolved, as in `"table"` mode.
+
+Things to know when the column is `ownerid`:
+
+- Setting the owner assigns the record, so reviewers need the **Assign**
+  privilege on the comment table, or posting fails.
+- The picker offers users only. If a comment is later reassigned to a team,
+  the thread shows the team's name and nobody can mark it resolved from the
+  control.
+- A "my open reviews" view becomes a plain view on the comment table:
+  owner = current user and status = Open.
+
+Switching a field between `"table"` and `"lookup"` doesn't move existing
+assignments: comments created under the other mode show no assignee.
 
 ### Linking comments to the parent record
 
@@ -382,7 +417,10 @@ standardizing on for this project (the examples above use `ins_`):
 - `ins_assignee` — Lookup to User (systemuser)
 - `ins_regardingtable` / `ins_regardingid` — Single Line of Text (optional, for a cross-table "assigned to me" view)
 
-The assignment table only records who is assigned to which comment, one row
+The assignment table is only needed in the default `"table"` assignment
+mode; with `assignmentMode: "lookup"` the assignee is a column on the comment
+table instead (see [One assignee per comment](#one-assignee-per-comment)).
+It only records who is assigned to which comment, one row
 per person. It has no status of its own. For a "my open reviews" view, build
 a view on the assignment table filtered to assignee = current user, and add a
 filter on the related comment's status being Open.
