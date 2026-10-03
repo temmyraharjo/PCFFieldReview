@@ -647,16 +647,3 @@ worth knowing about rather than discovering at 2am.
 From the repo root, `npm install && npm run build` builds all six controls
 into `out/controls/`. For packaging into a solution, quick deploys with
 `pac pcf push`, and adding the controls to a form, see [BUILD.md](BUILD.md).
-
-## Not built yet
-
-- Notification when someone is assigned (deliberately out of scope — needs a
-  plugin or Power Automate flow watching the assignment table, discussed and
-  deferred earlier in this project).
-- A visual "has an open thread / fully resolved / no comments" state on the
-  field itself, distinct from the badge, so a reviewer can scan a form
-  without opening every panel.
-- Multi-target lookup candidates merged into the dropdown.
-- PolyLookup: searching by a saved view / FetchXML (with extra columns shown
-  per suggestion), as DCE PolyLookup does. Only a primary-name search with an
-  OData filter is supported today.
