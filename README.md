@@ -150,6 +150,84 @@ and the panel opening next to the field:
 }
 ```
 
+### Samples by field type
+
+The keys don't change with the field type, so any example above works on any
+of these fields. These complete samples each pair a field type with a typical
+setup, using the column names from [Dataverse schema to create](#dataverse-schema-to-create).
+
+A **Multiple Lines of Text** field (e.g. Description), several assignees per
+comment, panel centred on screen:
+
+```json
+{
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingTableAttribute": "ins_regardingtable",
+  "regardingIdAttribute": "ins_regardingid",
+  "regardingNameAttribute": "ins_regardingname",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+  "commentResolvedOnAttribute": "ins_resolvedon",
+  "commentResolvedByAttribute": "ins_resolvedby",
+
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee"
+}
+```
+
+A **Yes/No** field (e.g. Do Not Email), one assignee per comment stored as the
+comment's owner, label drawn by the control (hide the form's own label):
+
+```json
+{
+  "renderLabel": true,
+  "labelWidth": "180px",
+
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingTableAttribute": "ins_regardingtable",
+  "regardingIdAttribute": "ins_regardingid",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+  "commentResolvedOnAttribute": "ins_resolvedon",
+
+  "assignmentMode": "lookup",
+  "commentAssigneeAttribute": "ownerid"
+}
+```
+
+A **Date Only** or **Date and Time** field (e.g. Est. Close Date) on an
+Opportunity form, comments linked to the opportunity through a real Lookup
+column, panel opening next to the field:
+
+```json
+{
+  "panelPlacement": "field",
+
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingMode": "lookup",
+  "regardingLookupAttribute": "ins_opportunity",
+  "regardingNameAttribute": "ins_regardingname",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+  "commentResolvedOnAttribute": "ins_resolvedon",
+  "commentResolvedByAttribute": "ins_resolvedby",
+
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee"
+}
+```
+
 ### Lookup fields
 
 The Lookup control needs everything above plus `lookupTargets`, the table(s)
