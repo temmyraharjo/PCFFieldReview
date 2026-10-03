@@ -294,7 +294,11 @@ Things to know when the column is `ownerid`:
   owner = current user and status = Open.
 
 Switching a field between `"table"` and `"lookup"` doesn't move existing
-assignments: comments created under the other mode show no assignee.
+assignments. Comments created under `"table"` mode keep their assignment rows,
+but `"lookup"` mode reads the comment's own column instead: with a dedicated
+column they show no assignee, and with `ownerid` they show their owner
+(usually whoever wrote the comment) as the assignee, who can then resolve
+them while the original assignees can't.
 
 ### Linking comments to the parent record
 
