@@ -49,7 +49,8 @@ export class FieldReviewYesNoControl implements ComponentFramework.StandardContr
         this.dropdown?.setDisabled(this.isReadOnly());
 
         const raw = this.readRaw();
-        if (raw !== this.lastRawValue) {
+        // Also resync when the user picked "---" but the platform kept (or restored) a value.
+        if (raw !== this.lastRawValue || (this.currentValue === null && raw !== null)) {
             this.lastRawValue = raw;
             this.currentValue = raw;
             this.dropdown?.setSelected(toKey(raw));

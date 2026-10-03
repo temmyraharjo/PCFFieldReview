@@ -158,9 +158,15 @@ export class FieldReviewControl implements ComponentFramework.StandardControl<II
         // The first render guessed the kind. A wrong input/textarea guess gets a freshly built
         // field (createField sets it up for the real kind); otherwise update the one in place.
         if ((this.input instanceof HTMLTextAreaElement) !== this.isMultiline()) {
+            const wasFocused = document.activeElement === this.input;
+            const typed = this.input.value;
             const field = this.createField();
             this.editorHost.replaceChild(field, this.input);
             this.input = field;
+            if (wasFocused) {
+                field.value = typed;
+                field.focus();
+            }
         } else {
             this.applyKind(this.input);
             this.input.readOnly = this.isReadOnly();
@@ -190,6 +196,10 @@ export class FieldReviewControl implements ComponentFramework.StandardControl<II
     /** Text shown while the input isn't focused: the platform's formatting when it matches, else our own. */
     private displayText(): string {
         if (this.currentValue === null) return "";
+        // Rich text is stored as HTML; show its text, not its tags (it is read-only here).
+        if (this.kind === "richtext") {
+            return new DOMParser().parseFromString(String(this.currentValue), "text/html").body.textContent ?? "";
+        }
         if (!this.isNumeric()) return String(this.currentValue);
         const prop = this.context.parameters.value;
         if (this.currentValue === this.lastRawValue && prop.formatted) return prop.formatted;

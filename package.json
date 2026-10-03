@@ -8,7 +8,8 @@
     "rebuild": "pcf-scripts rebuild",
     "start": "pcf-scripts start",
     "start:watch": "pcf-scripts start watch",
-    "refreshTypes": "pcf-scripts refreshTypes"
+    "refreshTypes": "pcf-scripts refreshTypes",
+    "check:dates": "node scripts/check-date-value.js"
   },
   "devDependencies": {
     "@types/powerapps-component-framework": "^1.3.4",

@@ -51,7 +51,7 @@ export class FieldReviewDateControl implements ComponentFramework.StandardContro
     }
 
     public getOutputs(): IOutputs {
-        return { value: this.wallClock ? fromWallClock(this.wallClock) : undefined } as IOutputs;
+        return { value: this.wallClock ? fromWallClock(this.wallClock) : undefined };
     }
 
     public destroy(): void {
@@ -59,12 +59,14 @@ export class FieldReviewDateControl implements ComponentFramework.StandardContro
     }
 
     private get property(): DateProperty {
-        return this.context.parameters.value as unknown as DateProperty;
+        return this.context.parameters.value;
     }
 
     /** Date and Time columns formatted to show the time get a time part; Date Only and "date" format don't. */
     private get withTime(): boolean {
-        return (this.property.attributes?.Format ?? "").toLowerCase() === "datetime";
+        const format = this.property.attributes?.Format;
+        if (format) return format.toLowerCase() === "datetime";
+        return this.property.type === "DateAndTime.DateAndTime";
     }
 
     private syncFromPlatform(): void {

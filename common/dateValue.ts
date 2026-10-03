@@ -58,6 +58,8 @@ export function fromInputValue(value: string, keepTimeOf: Date | null): Date | n
     const [, y, m, d, hh, mm] = match;
     const hours = hh !== undefined ? Number(hh) : keepTimeOf?.getHours() ?? 0;
     const minutes = mm !== undefined ? Number(mm) : keepTimeOf?.getMinutes() ?? 0;
-    const seconds = hh !== undefined ? 0 : keepTimeOf?.getSeconds() ?? 0;
+    // The input has no seconds: keep the stored ones unless the user changed the hour or minute.
+    const sameMinute = keepTimeOf?.getHours() === hours && keepTimeOf?.getMinutes() === minutes;
+    const seconds = sameMinute ? keepTimeOf?.getSeconds() ?? 0 : 0;
     return new Date(Number(y), Number(m) - 1, Number(d), hours, minutes, seconds);
 }
