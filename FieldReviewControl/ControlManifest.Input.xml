@@ -7,6 +7,7 @@
       <type>Whole.None</type>
       <type>Currency</type>
       <type>Decimal</type>
+      <type>Multiple</type>
     </type-group>
 
     <property name="value"

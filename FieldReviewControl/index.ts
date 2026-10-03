@@ -3,6 +3,15 @@ import { mountReviewControl, ReviewControl } from "../common/fieldLayout";
 import { getCurrentTableName } from "../common/dataverseApi";
 
 type ScalarValue = string | number | null;
+type Field = HTMLInputElement | HTMLTextAreaElement;
+/** "multiline" and "richtext" are Multiple Lines of Text columns; rich text is shown read-only. */
+type ColumnKind = "text" | "multiline" | "richtext" | "number";
+type AttributeDefinition = {
+    AttributeType?: number | string;
+    AttributeTypeName?: string | { value?: string };
+    Format?: string;
+    FormatName?: string | { value?: string };
+};
 type Metadata = ComponentFramework.PropertyHelper.FieldPropertyMetadata.Metadata & {
     MaxLength?: number;
     MinValue?: number;
@@ -10,39 +19,54 @@ type Metadata = ComponentFramework.PropertyHelper.FieldPropertyMetadata.Metadata
     Precision?: number;
 };
 
-// AttributeTypeCode values: Decimal 3, Double 4, Integer 5, Money 8 / Memo 7, String 14.
+// AttributeTypeCode values: Decimal 3, Double 4, Integer 5, Money 8 / Memo 7 / String 14.
 const NUMBER_TYPE_CODES = [3, 4, 5, 8];
-const TEXT_TYPE_CODES = [7, 14];
+const MEMO_TYPE_CODE = 7;
+const STRING_TYPE_CODE = 14;
 
-/** Maps an attribute definition to "text" or "number"; null if its type can't be read. */
-function columnKind(
-    attr: { AttributeType?: number | string; AttributeTypeName?: string | { value?: string } } | undefined
-): "text" | "number" | null {
+const nameOf = (value: string | { value?: string } | undefined) =>
+    typeof value === "string" ? value : value?.value ?? "";
+
+/** Maps an attribute definition to its editor kind; null if its type can't be read. */
+function columnKind(attr: AttributeDefinition | undefined): ColumnKind | null {
     if (!attr) return null;
     const code = attr.AttributeType;
-    if (typeof code === "number") {
-        if (NUMBER_TYPE_CODES.includes(code)) return "number";
-        if (TEXT_TYPE_CODES.includes(code)) return "text";
+    const name = `${typeof code === "string" ? code : ""} ${nameOf(attr.AttributeTypeName)}`;
+    if (code === MEMO_TYPE_CODE || /Memo/i.test(name)) {
+        return /RichText/i.test(`${attr.Format ?? ""} ${nameOf(attr.FormatName)}`) ? "richtext" : "multiline";
     }
-    const typeName = attr.AttributeTypeName;
-    const name = `${typeof code === "string" ? code : ""} ${typeof typeName === "string" ? typeName : typeName?.value ?? ""}`;
-    if (/String|Memo/i.test(name)) return "text";
+    if (typeof code === "number" && NUMBER_TYPE_CODES.includes(code)) return "number";
+    if (code === STRING_TYPE_CODE || /String/i.test(name)) return "text";
     if (/Integer|Decimal|Double|Money/i.test(name)) return "number";
     return null;
+}
+
+/** Text compared without regard to line endings, since a textarea turns \r\n into \n. */
+function sameValue(a: ScalarValue, b: ScalarValue): boolean {
+    if (typeof a === "string" && typeof b === "string") return a.replace(/\r\n/g, "\n") === b.replace(/\r\n/g, "\n");
+    return a === b;
+}
+
+/** Grows a textarea to fit its content; CSS max-height caps it, and then it scrolls. */
+function fitHeight(field: Field): void {
+    if (!(field instanceof HTMLTextAreaElement)) return;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
 }
 
 export class FieldReviewControl implements ComponentFramework.StandardControl<IInputs, IOutputs> {
     private context: ComponentFramework.Context<IInputs>;
     private notifyOutputChanged: () => void;
     private control: ReviewControl;
-    private input: HTMLInputElement | null = null;
+    private editorHost: HTMLElement | null = null;
+    private input: Field | null = null;
     private validationEl: HTMLDivElement | null = null;
     private currentValue: ScalarValue = null;
     // Last value the platform handed us, so updateView only overwrites what the
     // user typed when the field genuinely changed elsewhere (script, rollup, etc.).
     private lastRawValue: ScalarValue = null;
-    /** The column's real type, once resolveColumnKind has read it; null until then. */
-    private columnIsNumeric: boolean | null = null;
+    /** The column's real kind, once resolveColumnKind has read it; null until then. */
+    private kind: ColumnKind | null = null;
 
     public init(
         context: ComponentFramework.Context<IInputs>,
@@ -73,6 +97,7 @@ export class FieldReviewControl implements ComponentFramework.StandardControl<II
         }
         if (document.activeElement !== this.input) {
             this.input.value = this.displayText();
+            fitHeight(this.input);
         }
     }
 
@@ -96,12 +121,18 @@ export class FieldReviewControl implements ComponentFramework.StandardControl<II
      * wrongly-assumed text box just accepts input, while a wrongly-assumed number box blocks it.
      */
     private isNumeric(): boolean {
-        if (this.columnIsNumeric !== null) return this.columnIsNumeric;
+        if (this.kind !== null) return this.kind === "number";
         const raw = this.context.parameters.value.raw;
         if (typeof raw === "number") return true;
         if (typeof raw === "string") return false;
         const type = this.context.parameters.value.type ?? "";
         return type === "Whole.None" || type === "Currency" || type === "Decimal" || type === "FP";
+    }
+
+    /** Multiple Lines of Text gets a textarea. Until metadata answers, go by the bound type. */
+    private isMultiline(): boolean {
+        if (this.kind !== null) return this.kind === "multiline" || this.kind === "richtext";
+        return this.context.parameters.value.type === "Multiple";
     }
 
     /** Reads the column's attribute type from the table definition, then re-renders the input to match. */
@@ -114,33 +145,44 @@ export class FieldReviewControl implements ComponentFramework.StandardControl<II
                 Attributes?: { get?: (name: string) => unknown } & Record<string, unknown>;
             };
             const attrs = metadata.Attributes;
-            const attr = (attrs?.get?.(logicalName) ?? attrs?.[logicalName]) as
-                | { AttributeType?: number | string; AttributeTypeName?: string | { value?: string } }
-                | undefined;
+            const attr = (attrs?.get?.(logicalName) ?? attrs?.[logicalName]) as AttributeDefinition | undefined;
             const kind = columnKind(attr);
             if (kind === null) return;
-            this.columnIsNumeric = kind === "number";
+            this.kind = kind;
         } catch (e) {
             // eslint-disable-next-line no-console
             console.warn(`Field Review: couldn't read the type of column "${logicalName}"; guessing from its value.`, e);
             return;
         }
-        if (!this.input) return;
+        if (!this.input || !this.editorHost) return;
+        // The first render guessed the kind; swap input <-> textarea if that guess was wrong.
+        if ((this.input instanceof HTMLTextAreaElement) !== this.isMultiline()) {
+            const field = this.createField();
+            this.editorHost.replaceChild(field, this.input);
+            this.input = field;
+        }
         this.applyKind(this.input);
+        this.input.readOnly = this.isReadOnly();
         this.hideValidation();
         if (document.activeElement !== this.input) this.input.value = this.displayText();
+        fitHeight(this.input);
     }
 
-    /** Sets the input's keyboard and length limit for the column's kind. */
-    private applyKind(input: HTMLInputElement): void {
-        input.inputMode = this.isNumeric() ? "decimal" : "text";
-        if (!this.isNumeric() && this.metadata?.MaxLength) input.maxLength = this.metadata.MaxLength;
-        else input.removeAttribute("maxlength");
+    /** Sets the field's keyboard and length limit for the column's kind. */
+    private applyKind(field: Field): void {
+        field.inputMode = this.isNumeric() ? "decimal" : "text";
+        if (!this.isNumeric() && this.metadata?.MaxLength) field.maxLength = this.metadata.MaxLength;
+        else field.removeAttribute("maxlength");
     }
 
     private isReadOnly(): boolean {
         const security = this.context.parameters.value.security;
-        return this.context.mode.isControlDisabled || (security !== undefined && !security.editable);
+        // A plain textarea would expose and rewrite rich text's markup, so rich text is never edited here.
+        return (
+            this.context.mode.isControlDisabled ||
+            (security !== undefined && !security.editable) ||
+            this.kind === "richtext"
+        );
     }
 
     private readRaw(): ScalarValue {
@@ -216,41 +258,56 @@ export class FieldReviewControl implements ComponentFramework.StandardControl<II
     }
 
     private renderEditor(editor: HTMLElement): void {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.className = "ifr-input";
-        input.setAttribute("aria-label", this.metadata?.DisplayName ?? this.metadata?.LogicalName ?? "");
-        this.applyKind(input);
-        input.readOnly = this.isReadOnly();
-        input.value = this.displayText();
-        editor.appendChild(input);
+        this.editorHost = editor;
+        this.input = this.createField();
+        editor.appendChild(this.input);
 
         const validation = document.createElement("div");
         validation.className = "ifr-field-error";
         validation.style.display = "none";
         editor.appendChild(validation);
-        this.input = input;
         this.validationEl = validation;
+    }
 
-        input.addEventListener("focus", () => {
-            if (!input.readOnly) input.value = this.editText();
+    /** Builds the editor for the current kind: a textarea for multi-line text, else a one-line input. */
+    private createField(): Field {
+        const multiline = this.isMultiline();
+        const field: Field = multiline ? document.createElement("textarea") : document.createElement("input");
+        if (field instanceof HTMLInputElement) field.type = "text";
+        field.className = multiline ? "ifr-input ifr-textarea-field" : "ifr-input";
+        field.setAttribute("aria-label", this.metadata?.DisplayName ?? this.metadata?.LogicalName ?? "");
+        this.applyKind(field);
+        field.readOnly = this.isReadOnly();
+        field.value = this.displayText();
+
+        field.addEventListener("focus", () => {
+            if (!field.readOnly) field.value = this.editText();
         });
-        input.addEventListener("blur", () => {
-            const parsed = this.parseInput(input.value);
+        field.addEventListener("input", () => fitHeight(field));
+        field.addEventListener("blur", () => {
+            if (field.readOnly) return;
+            const parsed = this.parseInput(field.value);
             if ("error" in parsed) {
                 // Keep what they typed so they can correct it; nothing is sent to the form.
                 this.showValidation(parsed.error);
                 return;
             }
             this.hideValidation();
-            if (parsed.value !== this.currentValue) {
+            if (!sameValue(parsed.value, this.currentValue)) {
                 this.currentValue = parsed.value;
                 this.notifyOutputChanged();
             }
-            input.value = this.displayText();
+            field.value = this.displayText();
+            fitHeight(field);
         });
-        input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") input.blur();
-        });
+        if (multiline) {
+            // Size once the browser has laid the textarea out; Enter adds a line rather than committing.
+            window.setTimeout(() => fitHeight(field), 0);
+        } else {
+            field.addEventListener("keydown", (e) => {
+                if ((e as KeyboardEvent).key === "Enter") field.blur();
+            });
+        }
+        return field;
     }
 }
