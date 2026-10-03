@@ -1,5 +1,5 @@
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
-import { mountReviewControl, ReviewControl } from "../common/fieldLayout";
+import { isFieldReadOnly, mountReviewControl, ReviewControl } from "../common/fieldLayout";
 import { fromInputValue, fromWallClock, toInputValue, toWallClock } from "../common/dateValue";
 
 type DateProperty = ComponentFramework.PropertyTypes.DateTimeProperty;
@@ -79,8 +79,7 @@ export class FieldReviewDateControl implements ComponentFramework.StandardContro
     }
 
     private isReadOnly(): boolean {
-        const security = this.property.security;
-        return this.context.mode.isControlDisabled || (security !== undefined && !security.editable);
+        return isFieldReadOnly(this.context, this.property.security);
     }
 
     /** Text shown while not editing: the platform's formatting until the user changes the value, then our own. */

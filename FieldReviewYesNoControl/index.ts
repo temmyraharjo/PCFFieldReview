@@ -1,6 +1,6 @@
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 import { createDropdown, Dropdown } from "../common/dropdown";
-import { mountReviewControl, ReviewControl } from "../common/fieldLayout";
+import { isFieldReadOnly, mountReviewControl, ReviewControl } from "../common/fieldLayout";
 
 // A Yes/No column's two options carry the values 1 (true) and 0 (false).
 const TRUE_KEY = "1";
@@ -82,7 +82,6 @@ export class FieldReviewYesNoControl implements ComponentFramework.StandardContr
     }
 
     private isReadOnly(): boolean {
-        const security = this.context.parameters.value.security;
-        return this.context.mode.isControlDisabled || (security !== undefined && !security.editable);
+        return isFieldReadOnly(this.context, this.context.parameters.value.security);
     }
 }

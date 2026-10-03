@@ -1,5 +1,5 @@
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
-import { mountReviewControl, ReviewControl } from "../common/fieldLayout";
+import { isFieldReadOnly, mountReviewControl, ReviewControl } from "../common/fieldLayout";
 import { getCurrentTableName } from "../common/dataverseApi";
 
 type ScalarValue = string | number | null;
@@ -155,16 +155,18 @@ export class FieldReviewControl implements ComponentFramework.StandardControl<II
             return;
         }
         if (!this.input || !this.editorHost) return;
-        // The first render guessed the kind; swap input <-> textarea if that guess was wrong.
+        // The first render guessed the kind. A wrong input/textarea guess gets a freshly built
+        // field (createField sets it up for the real kind); otherwise update the one in place.
         if ((this.input instanceof HTMLTextAreaElement) !== this.isMultiline()) {
             const field = this.createField();
             this.editorHost.replaceChild(field, this.input);
             this.input = field;
+        } else {
+            this.applyKind(this.input);
+            this.input.readOnly = this.isReadOnly();
+            if (document.activeElement !== this.input) this.input.value = this.displayText();
         }
-        this.applyKind(this.input);
-        this.input.readOnly = this.isReadOnly();
         this.hideValidation();
-        if (document.activeElement !== this.input) this.input.value = this.displayText();
         fitHeight(this.input);
     }
 
@@ -176,13 +178,8 @@ export class FieldReviewControl implements ComponentFramework.StandardControl<II
     }
 
     private isReadOnly(): boolean {
-        const security = this.context.parameters.value.security;
         // A plain textarea would expose and rewrite rich text's markup, so rich text is never edited here.
-        return (
-            this.context.mode.isControlDisabled ||
-            (security !== undefined && !security.editable) ||
-            this.kind === "richtext"
-        );
+        return isFieldReadOnly(this.context, this.context.parameters.value.security) || this.kind === "richtext";
     }
 
     private readRaw(): ScalarValue {
