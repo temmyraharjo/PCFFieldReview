@@ -127,6 +127,42 @@ Yes/No or date field. A complete example:
 }
 ```
 
+That example links each comment to its record with `"regardingMode": "text"`:
+two plain text columns hold the record's table name and GUID, so one comment
+table serves every table with no schema change. With `"regardingMode":
+"lookup"`, a real Lookup column on the comment table points at the form's
+table instead, which adds a comments subgrid on the parent form, a clickable
+record name in views, and cascade delete, at the cost of one Lookup column per
+parent table. The same settings in `"lookup"` mode, for a field on an
+Opportunity form:
+
+```json
+{
+  "commentTable": "ins_reviewcomment",
+  "commentTextAttribute": "ins_commenttext",
+  "regardingMode": "lookup",
+  "regardingLookupAttribute": "ins_opportunity",
+  "regardingNameAttribute": "ins_regardingname",
+  "fieldReferenceAttribute": "ins_fieldlogicalname",
+  "commentStatusAttribute": "ins_status",
+  "commentStatusOpenValue": 100000000,
+  "commentStatusResolvedValue": 100000001,
+  "commentResolvedOnAttribute": "ins_resolvedon",
+  "commentResolvedByAttribute": "ins_resolvedby",
+
+  "assignmentTable": "ins_reviewassignment",
+  "assignmentCommentLookupAttribute": "ins_comment",
+  "assignmentUserLookupAttribute": "ins_assignee"
+}
+```
+
+Here `regardingTableAttribute` and `regardingIdAttribute` are optional: set
+them too and they're still filled in, which helps a single view across all
+parent tables. The assignment table's `assignmentRegarding*` copies are left
+out because "my open reviews" can follow the comment's Lookup instead. See
+[Linking comments to the parent record](#linking-comments-to-the-parent-record)
+for switching an existing field between modes.
+
 The bare minimum, with a Yes/No status column, the label drawn by the control
 and the panel opening next to the field:
 
