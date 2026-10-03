@@ -1,7 +1,8 @@
 # Building and deploying
 
-This repo is a single PCF project containing four controls:
-`FieldReviewControl`, `FieldReviewLookupControl`, `FieldReviewChoiceControl` and
+This repo is a single PCF project containing six controls:
+`FieldReviewControl`, `FieldReviewLookupControl`, `FieldReviewChoiceControl`,
+`FieldReviewYesNoControl`, `FieldReviewDateControl` and
 `FieldReviewPolyLookupControl`.
 They always build together. You can't build just one of them.
 
@@ -79,7 +80,7 @@ add an `eslint.config.mjs` and remove that flag.
 
 Create the solution in its own folder. The repo root is the PCF project
 (`FieldReview.pcfproj`), so the solution can't live there too. One reference
-brings in all four controls.
+brings in all six controls.
 
 ```
 mkdir Solution
@@ -117,13 +118,17 @@ After importing:
 1. Create the two custom tables described in the [README](README.md#dataverse-schema-to-create).
 2. On the form, open the field's properties, go to **Components**, and add
    the matching control:
-   - Text, Whole Number, Currency, Decimal: `Insurgo.FieldReviewControl`
+   - Text, Multiple Lines of Text, Whole Number, Currency, Decimal: `Insurgo.FieldReviewControl`
    - Lookup: `Insurgo.FieldReviewLookupControl`
    - Choice: `Insurgo.FieldReviewChoiceControl`
+   - Yes/No: `Insurgo.FieldReviewYesNoControl`
+   - Date Only, Date and Time: `Insurgo.FieldReviewDateControl`
    - Multi-select (N:N) on a text column: `Insurgo.FieldReviewPolyLookupControl`
      (see [Multi-select (PolyLookup) control](README.md#multi-select-polylookup-control))
 3. Set **Review settings (JSON)** to your schema (see the
    [README](README.md#settings-json)), then save and publish the form.
+   [Getting started](README.md#getting-started) in the README walks through
+   this with screenshots.
 
 ## Quick deploy while developing
 
