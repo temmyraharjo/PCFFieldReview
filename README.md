@@ -1,6 +1,6 @@
 # Insurgo Field Review — PCF controls
 
-Four PCF field controls that add a "+" comment/assignment thread to a field on a
+Six PCF field controls that add a "+" comment/assignment thread to a field on a
 model-driven form: reviewers can comment on a field and assign the comment to
 multiple people. Each comment is open until any one of its assignees marks it
 resolved, which resolves it for everyone. The full history is visible to all.
@@ -17,24 +17,33 @@ runtime.) Rather than gamble on
 unconfirmed platform behaviour for something this foundational, this project
 ships one control per field family, built together from a single PCF project:
 
-- **FieldReviewControl** — bind to a Text, Whole Number, Currency or Decimal
-  field. Editable input: text respects the column's max length; numbers show
-  formatted (e.g. `$1,250.00`), switch to the plain number while typing, and
-  are checked against the column's min/max and decimal places.
+- **FieldReviewControl** — bind to a Single Line of Text, Multiple Lines of
+  Text, Whole Number, Currency or Decimal field. Editable input: text respects
+  the column's max length; multi-line text gets a text area that grows with
+  its content up to a cap, then scrolls; numbers show formatted (e.g.
+  `$1,250.00`), switch to the plain number while typing, and are checked
+  against the column's min/max and decimal places. A Multiple Lines of Text
+  column in **rich text** format shows read-only: a plain text area would
+  expose and could rewrite its formatting.
 - **FieldReviewLookupControl** — bind to a Lookup field. Same comment thread,
   plus an editable dropdown of existing records. There's no way to create a
   record from the field unless `lookupAllowCreate` is set (see below).
 - **FieldReviewChoiceControl** — bind to a Choice (option set) field. Same
   comment thread, plus an editable dropdown of the field's options.
+- **FieldReviewYesNoControl** — bind to a Yes/No (two options) field. Same
+  dropdown as the Choice control, showing the column's own two labels.
+- **FieldReviewDateControl** — bind to a Date Only or Date and Time field.
+  Shows the date in the user's own format and switches to the browser's date
+  (and time) picker while editing. See caveat 8 on time zones.
 - **FieldReviewPolyLookupControl** — a multi-select lookup in the style of
   [DCE PolyLookup](https://github.com/khoait/DCE.PCF/wiki/PolyLookup), with the
   same comment thread. Bind it to a text column that hosts it; the selection
   lives in an N:N, custom N:N or Connection relationship. See
   [Multi-select (PolyLookup) control](#multi-select-polylookup-control).
 
-The Lookup and Choice controls render the value with the same dropdown
-(`common/dropdown.ts`), so both field types look and behave the same on the
-form: a plain list with a `---` entry for "no value", disabled when the form
+The Lookup, Choice and Yes/No controls render the value with the same
+dropdown (`common/dropdown.ts`), so those field types look and behave the same
+on the form: a plain list with a `---` entry for "no value", disabled when the form
 or field is read-only.
 
 All editors, including the text/number input, become read-only only when the
@@ -56,10 +65,12 @@ common/                    shared TypeScript and the one stylesheet (css/) used 
 FieldReviewControl/        manifest, index.ts, strings
 FieldReviewLookupControl/  manifest, index.ts, strings
 FieldReviewChoiceControl/  manifest, index.ts, strings
+FieldReviewYesNoControl/   manifest, index.ts, strings
+FieldReviewDateControl/    manifest, index.ts, strings
 FieldReviewPolyLookupControl/  manifest, index.ts, strings
 ```
 
-A single `npm install && npm run build` at the root builds all four controls
+A single `npm install && npm run build` at the root builds all six controls
 into `out/controls/<ControlName>/` (verified). You don't need the `pac` CLI
 for that step. You need the Power Platform CLI only to package or push the
 compiled controls into a solution.
@@ -75,19 +86,23 @@ and clients with different publisher prefixes.
 
 | Column type on the form | Control to add | Extra keys on top of the shared ones |
 |---|---|---|
-| Single Line of Text, Whole Number, Currency, Decimal | FieldReviewControl | none |
+| Single Line of Text, Multiple Lines of Text, Whole Number, Currency, Decimal | FieldReviewControl | none |
 | Choice | FieldReviewChoiceControl | none |
+| Yes/No | FieldReviewYesNoControl | none |
+| Date Only, Date and Time | FieldReviewDateControl | none |
 | Lookup | FieldReviewLookupControl | `lookupTargets` (required), optional `lookup*` keys |
 | Several related records (N:N, custom intersect table, Connection) | FieldReviewPolyLookupControl, bound to a text column | `polyLookup*` keys |
 
-Date Only, Date and Time, Yes/No, Multiple Lines of Text, multi-select Choices,
-File and Image columns are **not supported**: no control binds to them, so
-they won't appear in the form designer's control list for those fields.
+Multi-select Choices, File and Image columns are **not supported**: no
+control binds to them, so they won't appear in the form designer's control
+list for those fields. Multiple Lines of Text in rich text format can be
+bound but shows read-only.
 
-### Text, number and Choice fields
+### Text, number, Choice, Yes/No and date fields
 
 These need only the shared comment/assignment keys, so the same JSON works on
-any Text, Whole Number, Currency, Decimal or Choice field. A complete example:
+any Text, Multiple Lines of Text, Whole Number, Currency, Decimal, Choice,
+Yes/No or date field. A complete example:
 
 ```json
 {
@@ -499,10 +514,22 @@ worth knowing about rather than discovering at 2am.
 7. **The PolyLookup's bound column uses a `SingleLine.Text` /
    `SingleLine.TextArea` / `Multiple` type-group.** That's a documented
    same-family group, and the one DCE PolyLookup ships with.
+8. **Date time zones follow community-documented behaviour.** Microsoft
+   documents how each Date and Time behaviour is stored, but not the value a
+   PCF control receives. The date control treats a **User Local** value as a
+   UTC instant shown in the user's Dataverse time zone (not the browser's),
+   and **Date Only** and **Time Zone Independent** values as the stored date
+   and time unchanged (`common/dateValue.ts`). Before relying on it, check a
+   date of each behaviour on a real form with the browser's time zone set
+   differently from the user's: what the control shows and saves should match
+   the native field.
+9. **Choosing `---` on a Yes/No field** sends an empty value. Most Yes/No
+   columns always hold a value, so the platform may keep or restore the
+   column's default instead; the dropdown then shows what was kept.
 
 ## Building and packaging
 
-From the repo root, `npm install && npm run build` builds all four controls
+From the repo root, `npm install && npm run build` builds all six controls
 into `out/controls/`. For packaging into a solution, quick deploys with
 `pac pcf push`, and adding the controls to a form, see [BUILD.md](BUILD.md).
 
@@ -514,9 +541,6 @@ into `out/controls/`. For packaging into a solution, quick deploys with
 - A visual "has an open thread / fully resolved / no comments" state on the
   field itself, distinct from the badge, so a reviewer can scan a form
   without opening every panel.
-- Date, Yes/No and Multiple Lines of Text fields. They would need their own
-  editors (and, for dates, time zone handling) before the review thread can
-  sit on them.
 - Multi-target lookup candidates merged into the dropdown.
 - PolyLookup: searching by a saved view / FetchXML (with extra columns shown
   per suggestion), as DCE PolyLookup does. Only a primary-name search with an
