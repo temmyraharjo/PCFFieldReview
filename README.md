@@ -5,6 +5,79 @@ model-driven form: reviewers can comment on a field and assign the comment to
 multiple people. Each comment is open until any one of its assignees marks it
 resolved, which resolves it for everyone. The full history is visible to all.
 
+![A form with Field Review on several fields: badges show open comments, and the Qty 2 comment thread is open next to its field](images/PCF%20Field%20Review.jpeg)
+
+Each reviewed field gets a "+" to start a comment and a badge counting its
+comments and how many are still open. Clicking either opens the field's thread:
+the current value, every comment with its assignees and status, a "Mark
+resolved" button for assignees, and a box to add another comment.
+
+## Getting started
+
+### 1. Install the controls
+
+Import the solution into your environment:
+
+1. Build it with `build.cmd` from the repo root. This produces
+   `Solution/bin/Debug/InsurgoReviewControls.zip` (add `-Configuration Release`
+   for a minified build). See [BUILD.md](BUILD.md) for prerequisites and options.
+2. In [make.powerapps.com](https://make.powerapps.com), open **Solutions >
+   Import solution**, pick the zip and import it.
+
+While developing, `pac pcf push --publisher-prefix insurgo` pushes the controls
+straight into a dev environment instead (see
+[BUILD.md](BUILD.md#quick-deploy-while-developing)).
+
+### 2. Create the comment and assignment tables
+
+The controls store comments and assignments in your own tables, so nothing
+about your naming is hardcoded:
+
+- **Comment table**, one row per comment: a custom table, or a built-in one such
+  as Task (using its Description for the text and Status for open/resolved).
+- **Assignment table**, one row per person assigned to a comment, with a
+  Lookup to the comment table and a Lookup to User. (With
+  [one assignee per comment](#one-assignee-per-comment) you can skip this table.)
+- **A way for each comment to point at its record**: a Lookup on the comment
+  table to the form's table, or two text columns (see
+  [Linking comments to the parent record](#linking-comments-to-the-parent-record)).
+
+[Dataverse schema to create](#dataverse-schema-to-create) lists every column.
+
+### 3. Add the control to a field
+
+1. Open the form in the form designer and select the field.
+2. In the field's properties, under **Components**, select **+ Component** and
+   pick the control for the field's type (see
+   [Which control for which column](#which-control-for-which-column)):
+   **Field Review** for text, number and currency fields, **Field Review
+   (Lookup)** for lookups, **Field Review (Choice)**, **Field Review (Yes/No)**
+   or **Field Review (Date)**.
+3. In **Review settings (JSON)**, paste the settings that describe your tables
+   (see [Settings JSON](#settings-json)).
+4. Under **Show component on**, tick **Web**, **Mobile** and **Tablet**, then
+   select **Done**.
+5. **Save and publish** the form.
+
+A text field with **Field Review**: the settings name the comment table
+(`task`), the lookup that links a comment to this record, the status values,
+and the assignment table.
+
+![Form designer: the Name field's Field Review component with its Review settings (JSON) filled in](images/Setting%20-%20Text%20Field.jpeg)
+
+A lookup field (here a Lookup to User) with **Field Review (Lookup)**: the same
+settings plus the `lookup*` keys, which say which table the field points to and
+how users pick a record.
+
+![Form designer: the User lookup field's Field Review (Lookup) component, with lookupTargets, lookupMode, lookupAutoThreshold and lookupCandidateFilter added to the settings](images/Setting%20-%20Lookup%20Field.jpeg)
+
+### 4. Use it on the form
+
+Open a record: each reviewed field shows its "+" and, once it has comments, a
+badge such as "1 comment · 1 open". Select "+" to write a comment and assign it
+to one or more people. Any assignee can mark it resolved for everyone. The
+result is the screenshot at the top of this page.
+
 ## Why several controls, not one
 
 A single bound property can only declare one `<type-group>`, and while the
